@@ -54,7 +54,7 @@ Gasto na loja: comprar navios-coringa e upgrades.
 
 ## Estrutura da run
 
--------------------------------------------------------------|
+
 | Setor / oceano. Dificuldade sobe a cada um.                |
 | 3 rodadas por ante. A 3ª é rodada-boss com modificador.    |
 | Meta de pontos no tabuleiro.                               |
