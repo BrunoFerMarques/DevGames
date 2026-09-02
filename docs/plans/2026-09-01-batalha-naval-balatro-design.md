@@ -1,4 +1,4 @@
-# Batalha Naval + Balatro — Design
+# Batalha Naval — Design
 
 Data: 2026-09-01
 Engine: Godot 4.7 (GL Compatibility, 2D)
@@ -54,15 +54,14 @@ Gasto na loja: comprar navios-coringa e upgrades.
 
 ## Estrutura da run
 
-| Peça Balatro         | Equivalente aqui                                            |
-|----------------------|------------------------------------------------------------|
-| Ante (8)             | Setor / oceano. Dificuldade sobe a cada um.                |
-| Blind small/big/boss | 3 rodadas por ante. A 3ª é rodada-boss com modificador.    |
-| Meta de pontos       | Meta de pontos no tabuleiro.                               |
-| Mãos                 | Tiros por rodada.                                          |
-| Descartes            | Cargas de sonar por rodada.                                |
-| Loja                 | Entre rodadas: navios-coringa + upgrades.                  |
-| Boss blind           | Regra chata: névoa, navios blindados, grade maior, etc.    |
+-------------------------------------------------------------|
+| Setor / oceano. Dificuldade sobe a cada um.                |
+| 3 rodadas por ante. A 3ª é rodada-boss com modificador.    |
+| Meta de pontos no tabuleiro.                               |
+| Tiros por rodada.                                          |
+| Cargas de sonar por rodada.                                |
+| Entre rodadas: navios-coringa + upgrades.                  |
+| Regra chata: névoa, navios blindados, grade maior, etc.    |
 
 ### Curva de dificuldade (grade + frota por ante)
 
