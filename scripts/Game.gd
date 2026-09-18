@@ -1,7 +1,9 @@
 extends Node
 ## Estado da run inteira. Autoload "Game".
-## Mantido SEM dependencia de tipo de outros scripts (class_name) para o
-## singleton sempre carregar. nation/fleet guardam Effect, mas em duck-typing.
+## nation/admirals guardam Effect (coringas/nacoes plugaveis) em duck-typing,
+## sem depender do tipo, ja que sao carregados de fora (loja/selecao).
+## player_ships e' estado proprio do Game (frota fixa do MVP), por isso
+## referencia PlayerShip diretamente.
 
 signal money_changed(total: int)
 signal run_started
@@ -9,7 +11,8 @@ signal run_started
 const GRID_SIZE := 10        ## tamanho maximo (layout/camera). Atual = grid_size.
 
 var nation = null            # Effect ou null
-var fleet: Array = []        # Array de Effect
+var admirals: Array = []     # Array de Effect (coringas comprados na loja)
+var player_ships: Array[PlayerShip] = []   # Frota de navios-carta do jogador
 var money: int = 0
 var ante: int = 1
 var round_in_ante: int = 1
@@ -17,15 +20,15 @@ var round_in_ante: int = 1
 # --- Config recalculada a cada rodada ---
 var grid_size: int = 6
 var target_score: int = 300
-var base_shots: int = 8
-var base_sonar: int = 3
 var enemy_ship_sizes: Array[int] = [5, 4, 4]
 
 func reset_run() -> void:
-	fleet.clear()
+	admirals.clear()
 	money = 0
 	ante = 1
 	round_in_ante = 1
+	if player_ships.is_empty():
+		_build_starting_fleet()
 	if nation:
 		nation.on_run_start(self)
 	run_started.emit()
@@ -34,23 +37,30 @@ func add_money(amount: int) -> void:
 	money += amount
 	money_changed.emit(money)
 
-## Tiros efetivos da rodada = base + nacao + navios.
-func shots_for_round() -> int:
-	var n := base_shots
-	if nation:
-		n = nation.modify_shots(n)
-	for ship in fleet:
-		n = ship.modify_shots(n)
-	return maxi(n, 1)
+## Recarrega a carga de cada navio da frota (chamado no inicio de cada rodada).
+func refill_player_ships() -> void:
+	if player_ships.is_empty():
+		_build_starting_fleet()
+	for ship in player_ships:
+		ship.refill()
 
-## Cargas de sonar da rodada = base + nacao + navios.
-func sonar_for_round() -> int:
-	var n := base_sonar
-	if nation:
-		n = nation.modify_sonar(n)
-	for ship in fleet:
-		n = ship.modify_sonar(n)
-	return maxi(n, 0)
+## Frota fixa do MVP (sem loja ainda): 1 grande (4 cargas), 2 pequenos
+## (2 cargas cada) e 1 sonar (3 cargas).
+func _build_starting_fleet() -> void:
+	var bow: Texture2D = load("res://sprites/bow.png")
+	var mid: Texture2D = load("res://sprites/mid.png")
+	var stern: Texture2D = load("res://sprites/stern.png")
+	var sonar_tex: Texture2D = load("res://sprites/sonar.png")
+	player_ships = [
+		PlayerShip.new(&"battleship", "Encouracado", PlayerShip.Kind.SHOT,
+			[bow, mid, stern], 4),
+		PlayerShip.new(&"destroyer_a", "Destroyer A", PlayerShip.Kind.SHOT,
+			[bow, stern], 2),
+		PlayerShip.new(&"destroyer_b", "Destroyer B", PlayerShip.Kind.SHOT,
+			[bow, stern], 2),
+		PlayerShip.new(&"sonar_ship", "Navio-sonar", PlayerShip.Kind.SONAR,
+			[sonar_tex], 3),
+	]
 
 ## Recalcula meta e frota inimiga com base no ante/rodada atuais.
 func configure_round() -> void:

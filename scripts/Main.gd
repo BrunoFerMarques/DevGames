@@ -3,10 +3,9 @@ extends Control
 ## num painel de debug. HUD de verdade + loja + antes vem nas fases seguintes.
 
 @onready var board: Board = $Board
+@onready var fleet_bar: FleetBar = $FleetBar
 @onready var info: Label = $Panel/VBox/Info
 @onready var result: Label = $Panel/VBox/Result
-@onready var sonar_row: SpinBox = $Panel/VBox/SonarBox/Row
-@onready var sonar_fire: Button = $Panel/VBox/SonarBox/Fire
 @onready var restart_btn: Button = $Panel/VBox/Restart
 
 func _ready() -> void:
@@ -18,10 +17,7 @@ func _ready() -> void:
 	board.round_won.connect(func(): result.text = "RODADA VENCIDA")
 	board.round_lost.connect(func(): result.text = "RODADA PERDIDA - sem tiros")
 
-	sonar_row.min_value = 0
-	sonar_row.max_value = board.gsize - 1
-	sonar_row.step = 1
-	sonar_fire.pressed.connect(func(): board.use_sonar_row(int(sonar_row.value)))
+	fleet_bar.bind(board)
 	restart_btn.pressed.connect(_on_restart)
 	_refresh()
 
@@ -29,7 +25,6 @@ func _on_restart() -> void:
 	result.text = ""
 	Game.configure_round()
 	board.start_round()
-	sonar_row.max_value = board.gsize - 1
 	_refresh()
 
 func _refresh() -> void:
