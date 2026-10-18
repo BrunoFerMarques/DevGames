@@ -11,6 +11,7 @@ signal run_started
 
 const GRID_SIZE := 10        ## tamanho maximo (layout/camera). Atual = grid_size.
 const MAX_ADMIRALS := 5      ## teto de coringas, igual ao limite de jokers do Balatro.
+const ADMIRAL_SELL_REFUND := 3   ## metade do preco de compra (Shop.ADMIRAL_PRICE = 7)
 
 var nation = null            # Effect ou null
 var admirals: Array = []     # Array de Effect (coringas comprados na loja)
@@ -26,13 +27,21 @@ var target_score: int = 300
 var enemy_ship_sizes: Array[int] = [5, 4, 4]
 var _base_target_score: int = 300   # meta antes do desafio de boss
 
+func _ready() -> void:
+	randomize()
+
 func reset_run() -> void:
 	admirals.clear()
 	money = 0
 	ante = 1
 	round_in_ante = 1
+	boss_modifier = null
 	if player_ships.is_empty():
 		_build_starting_fleet()
+	else:
+		for ship in player_ships:
+			ship.upgrade = null
+			ship.upgrade_level = 0
 	if nation:
 		nation.on_run_start(self)
 	run_started.emit()
@@ -40,6 +49,15 @@ func reset_run() -> void:
 func add_money(amount: int) -> void:
 	money += amount
 	money_changed.emit(money)
+
+## Vende um Almirante da frota do jogador, devolvendo parte do preco de compra.
+func sell_admiral(adm: Effect) -> bool:
+	if not admirals.has(adm):
+		return false
+	admirals.erase(adm)
+	add_money(ADMIRAL_SELL_REFUND)
+	admirals_changed.emit()
+	return true
 
 ## Gasta dinheiro (loja). Retorna false sem efeito se nao tiver o suficiente.
 func spend_money(amount: int) -> bool:

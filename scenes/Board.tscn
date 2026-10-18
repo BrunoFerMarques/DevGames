@@ -1,15 +1,14 @@
-[gd_scene load_steps=6 format=3]
+[gd_scene format=3 uid="uid://gjxrp8hrvtm"]
 
-[ext_resource type="Script" path="res://scripts/Board.gd" id="1"]
-[ext_resource type="Texture2D" path="res://textures/water_texture.png" id="2"]
-[ext_resource type="Texture2D" path="res://textures/table_texture.png" id="3"]
-
-[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_water"]
-texture = ExtResource("3")
-axis_stretch_horizontal = 1
-axis_stretch_vertical = 1
+[ext_resource type="Script" uid="uid://blf1op3rl6s7m" path="res://scripts/Board.gd" id="1"]
+[ext_resource type="Texture2D" uid="uid://brdkon0caef24" path="res://textures/water_texture.png" id="2"]
+[ext_resource type="Texture2D" uid="uid://ca8q3fiq6m68l" path="res://textures/table_texture.png" id="3"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_frame"]
+content_margin_left = 8.0
+content_margin_top = 8.0
+content_margin_right = 8.0
+content_margin_bottom = 8.0
 bg_color = Color(0.09, 0.11, 0.16, 1)
 border_width_left = 6
 border_width_top = 6
@@ -20,12 +19,13 @@ corner_radius_top_left = 8
 corner_radius_top_right = 8
 corner_radius_bottom_right = 8
 corner_radius_bottom_left = 8
-content_margin_left = 8.0
-content_margin_top = 8.0
-content_margin_right = 8.0
-content_margin_bottom = 8.0
 
-[node name="Board" type="Control"]
+[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_water"]
+texture = ExtResource("3")
+axis_stretch_horizontal = 1
+axis_stretch_vertical = 1
+
+[node name="Board" type="Control" unique_id=1935980125]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -34,7 +34,7 @@ grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1")
 
-[node name="Background" type="TextureRect" parent="."]
+[node name="Background" type="TextureRect" parent="." unique_id=1089029938]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -44,7 +44,7 @@ grow_vertical = 2
 texture = ExtResource("2")
 stretch_mode = 1
 
-[node name="Margin" type="MarginContainer" parent="."]
+[node name="Margin" type="MarginContainer" parent="." unique_id=110821007]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -56,19 +56,19 @@ theme_override_constants/margin_top = 24
 theme_override_constants/margin_right = 24
 theme_override_constants/margin_bottom = 24
 
-[node name="VBox" type="VBoxContainer" parent="Margin"]
+[node name="VBox" type="VBoxContainer" parent="Margin" unique_id=261301873]
 layout_mode = 2
 
-[node name="GridFrame" type="PanelContainer" parent="Margin/VBox"]
+[node name="GridFrame" type="PanelContainer" parent="Margin/VBox" unique_id=884999159]
 layout_mode = 2
 size_flags_horizontal = 4
 size_flags_vertical = 4
 theme_override_styles/panel = SubResource("StyleBoxFlat_frame")
 
-[node name="GridPanel" type="PanelContainer" parent="Margin/VBox/GridFrame"]
+[node name="GridPanel" type="PanelContainer" parent="Margin/VBox/GridFrame" unique_id=1311925858]
 layout_mode = 2
 theme_override_styles/panel = SubResource("StyleBoxTexture_water")
 
-[node name="Grid" type="GridContainer" parent="Margin/VBox/GridFrame/GridPanel"]
+[node name="Grid" type="GridContainer" parent="Margin/VBox/GridFrame/GridPanel" unique_id=881417982]
 layout_mode = 2
 columns = 8

@@ -4,7 +4,7 @@
 
 [node name="AdmiralBar" type="VBoxContainer"]
 layout_mode = 3
-anchors_preset = 2
+anchors_preset = 0
 offset_left = 10.0
 offset_top = 10.0
 offset_right = 110.0
