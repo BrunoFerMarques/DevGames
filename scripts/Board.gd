@@ -17,7 +17,13 @@ signal round_lost
 
 const BASE_HIT_CHIPS := 10
 const SINK_BONUS_CHIPS := 50
+const BOSS_ADJUST_COST := 5
 const CellScene: PackedScene = preload("res://scenes/Cell.tscn")
+
+# Sprites do casco inimigo ja danificado - so aparecem no HIT/SUNK da celula.
+const ENEMY_BOW: Texture2D = preload("res://sprites/ship_bow_hit.png")
+const ENEMY_MID: Texture2D = preload("res://sprites/ship_mid_hit.png")
+const ENEMY_STERN: Texture2D = preload("res://sprites/ship_stern_hit.png")
 
 @onready var grid: GridContainer = $Margin/VBox/GridFrame/GridPanel/Grid
 
@@ -34,6 +40,7 @@ var selected_ship: PlayerShip = null
 
 var _active: bool = false
 var _water_count: int = 0
+var _round_committed: bool = false   # true apos o 1o tiro/sonar da rodada
 
 func _ready() -> void:
 	Game.configure_round()
@@ -46,6 +53,7 @@ func start_round() -> void:
 	score = 0
 	streak = 0
 	_water_count = 0
+	_round_committed = false
 	_active = true
 	selected_ship = null
 	_build_grid()
@@ -96,9 +104,17 @@ func _place_fleet(sizes: Array) -> void:
 					break
 			if clash:
 				continue
-			for p in body:
+			var rot_deg := 0.0 if horiz else 90.0
+			for i in body.size():
+				var p: Vector2i = body[i]
 				occupied[p] = true
 				cells[p].has_ship = true
+				var tex: Texture2D = ENEMY_MID
+				if i == 0:
+					tex = ENEMY_BOW
+				elif i == body.size() - 1:
+					tex = ENEMY_STERN
+				cells[p].set_ship_sprite(tex, rot_deg)
 			enemy_ships.append({"cells": body, "hits": 0, "size": int(s)})
 			break
 
@@ -117,17 +133,19 @@ func _on_cell_shot(coord: Vector2i) -> void:
 	var cell: Cell = cells[coord]
 	if not cell.is_shootable():
 		return
+	_round_committed = true
 
 	var kind: int = selected_ship.kind
+	var firing_ship: PlayerShip = selected_ship
 	_consume_selected_charge()
 
 	match kind:
 		PlayerShip.Kind.SHOT:
-			_resolve_shot(coord, cell)
+			_resolve_shot(coord, cell, firing_ship)
 		PlayerShip.Kind.SONAR:
 			_resolve_sonar(coord)
 
-func _resolve_shot(coord: Vector2i, cell: Cell) -> void:
+func _resolve_shot(coord: Vector2i, cell: Cell, firing_ship: PlayerShip) -> void:
 	var ship := _ship_at(coord)
 	var is_hit := not ship.is_empty()
 	var sank := false
@@ -138,7 +156,7 @@ func _resolve_shot(coord: Vector2i, cell: Cell) -> void:
 		streak += 1
 	else:
 		_water_count += 1
-		if not _nation_keeps_combo(_water_count):
+		if not _keeps_combo_on_water(_water_count):
 			streak = 0
 
 	var base_chips := 0
@@ -154,12 +172,15 @@ func _resolve_shot(coord: Vector2i, cell: Cell) -> void:
 		"chips": base_chips,
 		"mult": 1 + _combo_mult(),
 	}
+	if Game.boss_modifier:
+		Game.boss_modifier.on_shot(ctx)
+	firing_ship.apply_shot_upgrade(ctx)
 	if Game.nation:
 		Game.nation.on_shot(ctx)
 	for adm in Game.admirals:
 		adm.on_shot(ctx)
 
-	var gained: int = int(ctx["chips"]) * int(ctx["mult"])
+	var gained: int = int(floor(float(ctx["chips"]) * float(ctx["mult"])))
 	score += gained
 
 	if is_hit and sank:
@@ -174,7 +195,7 @@ func _resolve_shot(coord: Vector2i, cell: Cell) -> void:
 		"coord": coord,
 		"gained": gained,
 		"chips": int(ctx["chips"]),
-		"mult": int(ctx["mult"]),
+		"mult": float(ctx["mult"]),
 		"hit": is_hit,
 		"sank": sank,
 	})
@@ -183,11 +204,25 @@ func _resolve_shot(coord: Vector2i, cell: Cell) -> void:
 	_check_end()
 
 func _resolve_sonar(coord: Vector2i) -> void:
-	use_sonar_row(coord.y)
+	if _sonar_is_box():
+		use_sonar_box(coord)
+	else:
+		use_sonar_row(coord.y)
 
-func _nation_keeps_combo(water_n: int) -> bool:
-	if Game.nation and Game.nation.has_method("keeps_combo_on_water"):
-		return Game.nation.keeps_combo_on_water(water_n)
+func _sonar_is_box() -> bool:
+	if Game.nation and Game.nation.sonar_is_box():
+		return true
+	for adm in Game.admirals:
+		if adm.sonar_is_box():
+			return true
+	return false
+
+func _keeps_combo_on_water(water_n: int) -> bool:
+	if Game.nation and Game.nation.keeps_combo_on_water(water_n):
+		return true
+	for adm in Game.admirals:
+		if adm.keeps_combo_on_water(water_n):
+			return true
 	return false
 
 ## Sonar de linha (descarte padrao). Nao pontua. Reveal puro: quem controla
@@ -227,18 +262,52 @@ func _recalc_pools() -> void:
 	sonar_changed.emit(sonar_left)
 	fleet_changed.emit()
 
+## So termina a rodada quando os tiros acabam - bater a meta nao para na hora,
+## deixa o jogador gastar os tiros restantes (pontuar mais / testar upgrades).
 func _check_end() -> void:
+	if shots_left > 0:
+		return
+	_active = false
 	if score >= target:
-		_active = false
 		_run_round_end_effects()
 		round_won.emit()
-	elif shots_left <= 0:
-		_active = false
+	else:
 		round_lost.emit()
 
 func _run_round_end_effects() -> void:
 	var ctx: Dictionary = {"score": score, "target": target, "game": Game}
+	var reward := 4 + int(floor(float(score - target) / 50.0))
+	Game.add_money(maxi(reward, 0))
 	if Game.nation:
 		Game.nation.on_round_end(ctx)
 	for adm in Game.admirals:
 		adm.on_round_end(ctx)
+
+func has_commodore_nevoa() -> bool:
+	for adm in Game.admirals:
+		if adm.id == &"commodore_nevoa":
+			return true
+	return false
+
+## So pode trocar/remover o desafio antes do 1o tiro/sonar da rodada - depois
+## disso a frota ja consumiu carga e recarregar do zero perderia progresso.
+func can_adjust_boss() -> bool:
+	return _active and not _round_committed and Game.boss_modifier != null and has_commodore_nevoa()
+
+func reroll_boss() -> bool:
+	if not can_adjust_boss() or not Game.spend_money(BOSS_ADJUST_COST):
+		return false
+	Game.reroll_boss()
+	target = Game.target_score
+	_recalc_pools()
+	score_changed.emit(score, target)
+	return true
+
+func remove_boss() -> bool:
+	if not can_adjust_boss() or not Game.spend_money(BOSS_ADJUST_COST):
+		return false
+	Game.remove_boss()
+	target = Game.target_score
+	_recalc_pools()
+	score_changed.emit(score, target)
+	return true

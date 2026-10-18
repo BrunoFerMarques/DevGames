@@ -11,6 +11,11 @@ enum Kind { SHOT, SONAR }
 @export var segments: Array[Texture2D] = []
 @export var max_charges: int = 1
 
+## Melhoria comprada na loja para este navio (1 slot; recomprar a mesma sobe
+## o nivel, comprar outra diferente substitui).
+var upgrade: ShipUpgradeDef = null
+var upgrade_level: int = 0
+
 var charges: int = 0
 
 func _init(p_id: StringName = &"", p_name: String = "", p_kind: Kind = Kind.SHOT,
@@ -27,3 +32,8 @@ func refill() -> void:
 
 func has_charge() -> bool:
 	return charges > 0
+
+## Aplica a melhoria deste navio (se tiver) no ctx do tiro atual.
+func apply_shot_upgrade(ctx: Dictionary) -> void:
+	if upgrade:
+		upgrade.apply_shot(ctx, upgrade_level)
