@@ -130,3 +130,12 @@ theme_override_colors/font_color = Color(0.952941, 0.768627, 0.294118, 1)
 theme_override_font_sizes/font_size = 40
 text = "Rodada vencida!"
 horizontal_alignment = 1
+
+[node name="Stars" type="Control" parent="."]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_top = 84.0
+offset_bottom = 140.0
+grow_horizontal = 2
+mouse_filter = 2

@@ -2,7 +2,8 @@ extends PanelContainer
 class_name Hud
 ## Painel da direita, estilo Balatro: meta, pontos da rodada (contando ate o
 ## valor novo, com barra ate a meta), conta do ultimo tiro em fichas x mult,
-## combo e contadores (tiros, sonar, dinheiro).
+## combo e contadores (tiros, sonar, dinheiro). No topo, mini-trilha do ante
+## atual (3 paradas, a ultima e' o chefe), igual ao mapa de fases.
 ## Combo "esquenta" o mult: cor sobe de dourado pra vermelho, caixa pula,
 ## painel treme mais a cada acerto e a partir de FIRE_STREAK o mult pega fogo.
 
@@ -26,7 +27,12 @@ const HEAT: Array[Color] = [Color("#f3c44b"), Color("#f08a3c"), Color("#e4573c")
 const FIRE_STREAK := 4        # a partir daqui o mult pega fogo (+1 chama por acerto)
 const MAX_FLAMES := 3
 const COUNT_TIME := 0.35      # pontos contando ate o valor novo
+const TRACK_LEFT := 96.0      # espaco do "ANTE n" antes das paradas
+const TRACK_Y := 14.0
+const STAT_BG := Color("#12365f")
+const DANGER_ORANGE := Color("#f08a3c")
 
+@onready var track: Control = $VBox/Track
 @onready var boss_box: PanelContainer = $VBox/Boss
 @onready var boss_name: Label = $VBox/Boss/VBox/Name
 @onready var boss_desc: Label = $VBox/Boss/VBox/Desc
@@ -63,6 +69,7 @@ func _ready() -> void:
 	_fill_style = progress.get_theme_stylebox("fill")
 	_mult_style = (mult_box.get_theme_stylebox("panel") as StyleBoxFlat).duplicate()
 	mult_box.add_theme_stylebox_override("panel", _mult_style)
+	track.draw.connect(_draw_track)
 
 func bind(board: Board) -> void:
 	_board = board
@@ -91,19 +98,57 @@ func _on_round_started() -> void:
 	combo_label.text = " "
 	_mult_style.border_color = HIT_RED
 	_set_flames(0)
+	track.queue_redraw()
 	_on_score_changed(_board.score, _board.target)
 	_refresh_counts()
 	_refresh_fleet()
 
-## Uma linha por navio inimigo: quadradinhos do tamanho + nome. So revela o
-## que o batalha naval classico anuncia (quem ja afundou), nunca a posicao.
+## Paradas do ante: vencidas em ouro, atual em creme com anel, chefe com coroa.
+## Rota especial (perigo/tesouro) escrita embaixo.
+func _draw_track() -> void:
+	var font := get_theme_default_font()
+	track.draw_string(font, Vector2(0, TRACK_Y + 7), "ANTE %d" % Game.ante, HORIZONTAL_ALIGNMENT_LEFT, -1, 20, GOLD)
+	var gap := (track.size.x - TRACK_LEFT - 16.0) / (Game.ROUNDS_PER_ANTE - 1)
+	var first := Vector2(TRACK_LEFT, TRACK_Y)
+	track.draw_line(first, first + Vector2(gap * (Game.ROUNDS_PER_ANTE - 1), 0), FLEET_DIM, 3.0)
+	for i in Game.ROUNDS_PER_ANTE:
+		var p := first + Vector2(gap * i, 0)
+		var boss := i == Game.ROUNDS_PER_ANTE - 1
+		var r := 12.0 if boss else 9.0
+		var here := i == Game.round_in_ante - 1
+		var fill := STAT_BG
+		if i < Game.round_in_ante - 1:
+			fill = GOLD
+		elif here:
+			fill = CREAM
+			track.draw_arc(p, r + 5.0, 0.0, TAU, 32, HIT_RED if boss else GOLD, 2.0, true)
+		track.draw_circle(p, r, fill)
+		if boss:
+			MapIcons.crown(track, p, 0.4, HIT_RED)
+	var kind := Game.stop_kind()
+	if kind != Game.Stop.NORMAL:
+		var color := DANGER_ORANGE if kind == Game.Stop.DANGER else GOLD
+		track.draw_string(font, Vector2(0, TRACK_Y + 34), Game.STOP_NAMES[kind], HORIZONTAL_ALIGNMENT_LEFT, -1, 16, color)
+
+## Uma linha por tipo de navio inimigo: quadradinhos do tamanho + nome, e
+## "xN" com quantos ainda flutuam quando ha mais de um igual. So revela o que
+## o batalha naval classico anuncia (quem ja afundou), nunca a posicao.
 func _refresh_fleet() -> void:
 	for c in fleet_box.get_children():
 		fleet_box.remove_child(c)
 		c.queue_free()
+	var groups: Dictionary = {}   # nome|tamanho|marcas -> {def, alive, total}
 	for ship in _board.enemy_ships:
-		var sunk: bool = _board.is_sunk(ship)
 		var def: EnemyShipDef = ship["def"]
+		var key := "%s|%d|%s" % [def.display_name, def.size, str(def.tags())]
+		if not groups.has(key):
+			groups[key] = {"def": def, "alive": 0, "total": 0}
+		groups[key]["total"] += 1
+		if not _board.is_sunk(ship):
+			groups[key]["alive"] += 1
+	for group in groups.values():
+		var def: EnemyShipDef = group["def"]
+		var sunk: bool = group["alive"] == 0
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 8)
 		var squares := HBoxContainer.new()
@@ -118,6 +163,8 @@ func _refresh_fleet() -> void:
 		row.add_child(squares)
 		var name_lbl := Label.new()
 		name_lbl.text = def.display_name
+		if group["total"] > 1:
+			name_lbl.text += " x%d" % (group["total"] if sunk else group["alive"])
 		name_lbl.add_theme_color_override("font_color", FLEET_DIM if sunk else CREAM)
 		row.add_child(name_lbl)
 		for tag in def.tags():

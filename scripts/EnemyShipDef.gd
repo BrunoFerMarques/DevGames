@@ -30,6 +30,14 @@ static func warship(p_size: int) -> EnemyShipDef:
 const CARGO_LOOT_BY_SIZE := {5: 1, 4: 2, 3: 3, 2: 4}
 const TREASURE_SIZE := 2
 const TREASURE_LOOT := 8
+const SMUGGLER_LOOT := 5
+
+## Bote contrabandista de 1 casa: afunda no primeiro acerto e paga bem, mas e' o mais dificil
+## de achar - so a contagem por linha/coluna entrega onde ele esta.
+static func smuggler() -> EnemyShipDef:
+	var d := EnemyShipDef.new(&"smuggler", "Bote", 1)
+	d.loot_money = SMUGGLER_LOOT
+	return d
 
 static func cargo(p_size: int) -> EnemyShipDef:
 	var d := EnemyShipDef.new(&"cargo", "Cargueiro", p_size)

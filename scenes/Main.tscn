@@ -1,4 +1,4 @@
-[gd_scene load_steps=12 format=3]
+[gd_scene load_steps=13 format=3]
 
 [ext_resource type="Script" path="res://scripts/Main.gd" id="1"]
 [ext_resource type="PackedScene" path="res://scenes/Board.tscn" id="2"]
@@ -11,6 +11,7 @@
 [ext_resource type="PackedScene" path="res://scenes/SinkTransition.tscn" id="9"]
 [ext_resource type="Script" path="res://scripts/ScreenFader.gd" id="10"]
 [ext_resource type="PackedScene" path="res://scenes/Hud.tscn" id="11"]
+[ext_resource type="PackedScene" path="res://scenes/LevelMap.tscn" id="12"]
 
 [node name="Main" type="Control"]
 layout_mode = 3
@@ -49,6 +50,10 @@ visible = false
 layout_mode = 1
 
 [node name="Shop" parent="." instance=ExtResource("4")]
+visible = false
+layout_mode = 1
+
+[node name="LevelMap" parent="." instance=ExtResource("12")]
 visible = false
 layout_mode = 1
 

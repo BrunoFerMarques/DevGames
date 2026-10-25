@@ -7,6 +7,7 @@ class_name DockTransition
 ## escalado pra cobrir a tela, entao o navio fica sempre alinhado com o cais.
 ## Water recorta na linha do cais (y 236): respingo nao invade o concreto.
 ## A posicao de atracacao e' a do Ship na cena - arraste no editor pra ajustar.
+## Embaixo do titulo, as estrelas da rodada (Game.record_win) estouram uma a uma.
 
 signal finished
 
@@ -15,6 +16,12 @@ const SAIL_TIME := 3.0
 const SLOW_WAKE_AT := 0.55   # fracao da viagem em que a esteira desacelera
 const FADE_TIME := 0.4       # esteira/onda somem depois de parar
 const HOLD_TIME := 0.8       # parado no cais antes de abrir a loja
+const STAR_DELAY := 0.4
+const STAR_TIME := 0.35      # por estrela
+const STAR_RADIUS := 24.0
+const STAR_GAP := 64.0
+const GOLD := Color("#f3c44b")
+const STAR_OFF := Color(0.039216, 0.105882, 0.2, 0.8)
 
 @onready var stage: Control = $Stage
 @onready var ship: Control = $Stage/Water/Ship
@@ -22,19 +29,33 @@ const HOLD_TIME := 0.8       # parado no cais antes de abrir a loja
 @onready var wake_slow: SpriteSheetPlayer = $Stage/Water/Ship/WakeSlow
 @onready var bow_wave: SpriteSheetPlayer = $Stage/Water/Ship/BowWave
 @onready var smoke: SpriteSheetPlayer = $Stage/Water/Ship/Smoke
+@onready var stars: Control = $Stars
 
 var _dock_x: float
 var _tween: Tween
 var _done: bool = true
+var _star_count: int = 0
+## Quantas estrelas ja apareceram (fracionario = a proxima esta crescendo).
+var _stars_shown: float = 0.0:
+	set(v):
+		_stars_shown = v
+		if stars:
+			stars.queue_redraw()
 
 func _ready() -> void:
 	_dock_x = ship.position.x
 	resized.connect(_fit_stage)
+	stars.draw.connect(_draw_stars)
 	_fit_stage()
 
-func play() -> void:
+func play(star_count: int = 0) -> void:
 	visible = true
 	_done = false
+	_star_count = star_count
+	_stars_shown = 0.0
+	if star_count > 0:
+		create_tween().tween_property(self, "_stars_shown", float(star_count), STAR_TIME * star_count) \
+			.set_delay(STAR_DELAY)
 	_fit_stage()
 	# Comeca logo fora da borda esquerda; a esteira fica pra tras, fora da tela.
 	ship.position.x = -ship.size.x
@@ -55,6 +76,16 @@ func play() -> void:
 	_tween.parallel().tween_property(bow_wave, "modulate:a", 0.0, FADE_TIME)
 	_tween.tween_interval(HOLD_TIME)
 	_tween.tween_callback(_finish)
+
+## 3 estrelas vazias; as ganhas crescem passando do tamanho e assentam.
+func _draw_stars() -> void:
+	var c := stars.size / 2.0
+	for i in 3:
+		var p := c + Vector2((i - 1) * STAR_GAP, 0)
+		MapIcons.star(stars, p, STAR_RADIUS, STAR_OFF)
+		var k := clampf(_stars_shown - i, 0.0, 1.0)
+		if i < _star_count and k > 0.0:
+			MapIcons.star(stars, p, STAR_RADIUS * k * (1.0 + 0.4 * sin(k * PI)), GOLD)
 
 func _slow_down() -> void:
 	wake_fast.stop()

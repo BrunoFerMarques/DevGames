@@ -149,6 +149,10 @@ theme_override_constants/separation = 6
 layout_mode = 2
 text = "Total: 0 tiros"
 
+[node name="LoadAll" type="Button" parent="Shots/VBox"]
+layout_mode = 2
+text = "Carregar tudo"
+
 [node name="Spacer" type="Control" parent="Shots/VBox"]
 layout_mode = 2
 size_flags_vertical = 3

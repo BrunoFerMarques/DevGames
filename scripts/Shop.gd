@@ -30,6 +30,7 @@ const GOLD := Color("#f3c44b")
 @onready var shots_total: Label = $Shots/VBox/Total
 @onready var warning: Label = $Shots/VBox/Warning
 @onready var continue_btn: Button = $Shots/VBox/Continue
+@onready var load_all_btn: Button = $Shots/VBox/LoadAll
 
 var _reroll_cost: int = REROLL_BASE_COST
 var _admiral_offers: Array[Effect] = []
@@ -38,6 +39,7 @@ var _shot_offers: Array[ShotTypeDef] = []
 
 func _ready() -> void:
 	reroll_btn.pressed.connect(_on_reroll)
+	load_all_btn.pressed.connect(_load_all)
 	continue_btn.pressed.connect(func(): closed.emit())
 	Game.money_changed.connect(func(_m):
 		if visible:
@@ -78,6 +80,14 @@ func _load_shot(ship: PlayerShip) -> void:
 	if not ship.can_load_shot() or not Game.spend_money(SHOT_PRICE):
 		return
 	ship.bought_shots += 1
+	_refresh()
+
+## Enche os navios de tiro em ordem (o da frente primeiro) ate o pente ou o
+## dinheiro acabar.
+func _load_all() -> void:
+	for ship in Game.player_ships:
+		while ship.can_load_shot() and Game.spend_money(SHOT_PRICE):
+			ship.bought_shots += 1
 	_refresh()
 
 ## Devolve um tiro comprado nesta visita (tudo que esta carregado foi
@@ -156,6 +166,8 @@ func _refresh() -> void:
 	var info := "Ante %d · Rodada %d/3 · Meta %d" % [Game.ante, Game.round_in_ante, Game.target_score]
 	if Game.boss_modifier:
 		info += " · DESAFIO: %s" % Game.boss_modifier.display_name
+	elif Game.stop_kind() != Game.Stop.NORMAL:
+		info += " · %s" % Game.STOP_NAMES[Game.stop_kind()]
 	round_info.text = info
 	reroll_btn.text = "Reroll ($%d)" % _reroll_cost
 	reroll_btn.disabled = Game.money < _reroll_cost
@@ -190,7 +202,18 @@ func _refresh_shots() -> void:
 			lbl.add_theme_color_override("font_color", Color("#2fbfb0"))
 			shot_rows.add_child(lbl)
 	shots_total.text = "Total: %d tiros" % total
-	warning.text = "Sem tiros, a rodada termina na hora!" if total == 0 else " "
+	# Zarpar sem tiro perde a rodada na hora: so deixa quando nao da pra pagar
+	# nem um tiro (senao o jogo travaria na loja).
+	var can_buy := Game.money >= SHOT_PRICE and Game.player_ships.any(
+		func(s: PlayerShip) -> bool: return s.can_load_shot())
+	continue_btn.disabled = total == 0 and can_buy
+	load_all_btn.disabled = not can_buy
+	if total > 0:
+		warning.text = " "
+	elif can_buy:
+		warning.text = "Compre tiros (+) para zarpar."
+	else:
+		warning.text = "Sem tiros, a rodada termina na hora!"
 
 func _make_shot_row(ship: PlayerShip) -> Control:
 	var row := HBoxContainer.new()

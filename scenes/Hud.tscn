@@ -82,6 +82,11 @@ script = ExtResource("1")
 layout_mode = 2
 theme_override_constants/separation = 10
 
+[node name="Track" type="Control" parent="VBox"]
+custom_minimum_size = Vector2(0, 52)
+layout_mode = 2
+mouse_filter = 2
+
 [node name="Boss" type="PanelContainer" parent="VBox"]
 visible = false
 layout_mode = 2

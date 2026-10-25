@@ -3,20 +3,27 @@ class_name GameOver
 ## Tela de fim de run: mostra quando os tiros acabam sem bater a meta.
 ## Reiniciar aqui zera a run inteira (dinheiro, almirantes, ante) - quem faz
 ## o reset de verdade e' quem escuta o sinal `restart` (Main chama
-## Game.reset_run()).
+## Game.reset_run()). Se ja venceu algum chefe, oferece voltar ao checkpoint
+## (sinal `resume`; Main chama Game.load_checkpoint()).
 
 signal restart
+signal resume
 
 @onready var dim: ColorRect = $Dim
 @onready var panel: PanelContainer = $Panel
 @onready var stats_label: Label = $Panel/VBox/Stats
 @onready var restart_btn: Button = $Panel/VBox/Restart
+@onready var resume_btn: Button = $Panel/VBox/Resume
 
 func _ready() -> void:
 	restart_btn.pressed.connect(func(): restart.emit())
+	resume_btn.pressed.connect(func(): resume.emit())
 
 func open(score: int, target: int) -> void:
 	stats_label.text = "Pontuacao final: %d / %d" % [score, target]
+	resume_btn.visible = Game.has_checkpoint()
+	if resume_btn.visible:
+		resume_btn.text = "Voltar ao checkpoint (Ante %d)" % Game.checkpoint["ante"]
 	# Entra com "pop" (escurece o fundo, painel cresce passando um pouco do
 	# tamanho e assenta) em vez de aparecer seco.
 	dim.modulate.a = 0.0

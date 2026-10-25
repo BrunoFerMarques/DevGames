@@ -4,7 +4,9 @@ class_name Cell
 
 ## ARMORED: casa blindada que ja levou um tiro sem furar (ainda da pra atirar).
 ## MINE: mina detonada. SONAR_MINE: sonar achou mina (da pra atirar, mas explode).
-enum State { HIDDEN, WATER, HIT, SUNK, SONAR_SHIP, SONAR_EMPTY, ARMORED, MINE, SONAR_MINE }
+## CLEAR: agua deduzida pela regra de navios nao se encostarem (diagonal de um
+## acerto, borda de um afundado) - marcada de graca, nao da pra atirar.
+enum State { HIDDEN, WATER, HIT, SUNK, SONAR_SHIP, SONAR_EMPTY, ARMORED, MINE, SONAR_MINE, CLEAR }
 
 signal shot_requested(coord: Vector2i)
 
@@ -55,7 +57,9 @@ const TILE_TEX := {
 	State.ARMORED: preload("res://sprites/tabuleiro/celula_blindada.png"),
 	State.MINE: preload("res://sprites/tabuleiro/celula_agua.png"),
 	State.SONAR_MINE: preload("res://sprites/tabuleiro/celula_oculta.png"),
+	State.CLEAR: preload("res://sprites/tabuleiro/celula_agua.png"),
 }
+const CLEAR_MARK_ALPHA := 0.4   # deduzida fica mais apagada que agua atirada
 const HOVER_TEX: Texture2D = preload("res://sprites/tabuleiro/celula_hover.png")
 const TILE_MARGIN := 8   # borda de 2px da arte (x4); o miolo repete em vez de esticar
 
@@ -162,6 +166,14 @@ func set_state(s: State) -> void:
 	elif s == State.MINE and prev != State.MINE:
 		_sunk_burst.play()
 
+## Marca como agua deduzida (sem respingo). Mina nunca e' marcada: a regra
+## so garante que nao ha navio, e o Board ja evita mina colada em navio.
+func mark_clear() -> void:
+	if has_ship or has_mine or not state in [State.HIDDEN, State.SONAR_EMPTY]:
+		return
+	state = State.CLEAR
+	_refresh()
+
 ## Sonar so marca celulas ainda ocultas. Submarino passa batido (le como vazio).
 func reveal_sonar() -> void:
 	if state != State.HIDDEN:
@@ -199,7 +211,7 @@ func _refresh() -> void:
 
 	var mark: Texture2D = null
 	match state:
-		State.WATER:
+		State.WATER, State.CLEAR:
 			mark = WATER_MARK
 		State.SONAR_EMPTY:
 			mark = SONAR_EMPTY_MARK
@@ -208,6 +220,7 @@ func _refresh() -> void:
 		State.SONAR_MINE:
 			mark = SONAR_MINE_MARK
 	_mark.texture = mark
+	_mark.modulate.a = CLEAR_MARK_ALPHA if state == State.CLEAR else 1.0
 	_mark.visible = mark != null and not _splash.visible
 
 	_set_looping(_sonar_blip, state == State.SONAR_SHIP)
