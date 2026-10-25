@@ -37,6 +37,6 @@ func on_round_end(_ctx: Dictionary) -> void:
 func keeps_combo_on_water(_water_n: int) -> bool:
 	return false
 
-## True se o sonar deste efeito revela area 3x3 em vez da linha inteira.
+## True se o sonar deste efeito revela area 3x3 em vez de 3 casas na linha.
 func sonar_is_box() -> bool:
 	return false

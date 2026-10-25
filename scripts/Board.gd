@@ -12,24 +12,33 @@ signal combo_changed(streak: int, combo_mult: int)
 signal shot_resolved(info: Dictionary)
 signal ship_selected(ship: PlayerShip)
 signal fleet_changed
+## Frota inimiga posicionada ou um navio afundou (lista do HUD).
+signal enemy_fleet_changed
+signal round_started
 signal round_won
 signal round_lost
 
 const BASE_HIT_CHIPS := 10
 const SINK_BONUS_CHIPS := 50
 const BOSS_ADJUST_COST := 5
+## Vitoria paga a municao da proxima rodada (tiro custa Shop.SHOT_PRICE).
+const ROUND_BASE_REWARD := 8
+const SONAR_SPAN := 3   # casas que o sonar base revela na linha clicada
 const CellScene: PackedScene = preload("res://scenes/Cell.tscn")
+const COORD_COLOR := Color(0.184, 0.749, 0.69, 0.85)   # Sonar, levemente apagado
+const SUB_TINT := Color(0.7, 0.92, 0.85)   # segmento de submarino quando aparece
+const MINE_SHOT_PENALTY := 1                # tiros extras que a mina tira do navio
 
 # Sprites do casco inimigo ja danificado - so aparecem no HIT/SUNK da celula.
-const ENEMY_BOW: Texture2D = preload("res://sprites/ship_bow_hit.png")
-const ENEMY_MID: Texture2D = preload("res://sprites/ship_mid_hit.png")
-const ENEMY_STERN: Texture2D = preload("res://sprites/ship_stern_hit.png")
+const ENEMY_BOW: Texture2D = preload("res://sprites/inimigo/ship_bow_hit.png")
+const ENEMY_MID: Texture2D = preload("res://sprites/inimigo/ship_mid_hit.png")
+const ENEMY_STERN: Texture2D = preload("res://sprites/inimigo/ship_stern_hit.png")
 
 @onready var grid: GridContainer = $Margin/VBox/GridFrame/GridPanel/Grid
 
 var gsize: int = Game.grid_size
 var cells: Dictionary = {}                 # Vector2i -> Cell
-var enemy_ships: Array[Dictionary] = []    # { cells: Array[Vector2i], hits: int, size: int }
+var enemy_ships: Array[Dictionary] = []    # { def: EnemyShipDef, cells: Array[Vector2i], hits: int, size: int }
 
 var score: int = 0
 var target: int = 0
@@ -37,15 +46,19 @@ var shots_left: int = 0    # derivado: soma de charges dos navios SHOT
 var sonar_left: int = 0    # derivado: soma de charges dos navios SONAR
 var streak: int = 0
 var selected_ship: PlayerShip = null
+## Animacao do tiro (Main liga). Sem ela o tiro resolve na hora.
+var shot_fx: ShotFx = null
 
 var _active: bool = false
+var _busy: bool = false              # projetil no ar: ignora cliques
+var _round_id: int = 0               # muda a cada start_round (tiro em voo de rodada velha e' descartado)
 var _water_count: int = 0
+var mines_total: int = 0
+var mines_exploded: int = 0
 var _round_committed: bool = false   # true apos o 1o tiro/sonar da rodada
 
-func _ready() -> void:
-	Game.configure_round()
-	start_round()
-
+## Chamado pelo Main quando a loja fecha (inclusive antes da 1a rodada),
+## porque os tiros sao comprados antes de cada rodada.
 func start_round() -> void:
 	gsize = Game.grid_size
 	target = Game.target_score
@@ -55,12 +68,20 @@ func start_round() -> void:
 	_water_count = 0
 	_round_committed = false
 	_active = true
+	_busy = false
+	_round_id += 1
 	selected_ship = null
 	_build_grid()
-	_place_fleet(Game.enemy_ship_sizes)
+	_place_fleet(Game.enemy_fleet)
+	_place_mines(Game.mine_count)
+	enemy_fleet_changed.emit()
 	_recalc_pools()
 	score_changed.emit(score, target)
 	combo_changed.emit(streak, _combo_mult())
+	round_started.emit()
+	# Saiu da loja sem comprar tiro: nao ha o que jogar, a rodada acaba.
+	if shots_left == 0:
+		_check_end.call_deferred()
 
 ## Seleciona o navio que vai disparar no proximo clique de celula.
 func select_ship(ship: PlayerShip) -> void:
@@ -70,11 +91,17 @@ func select_ship(ship: PlayerShip) -> void:
 	ship_selected.emit(selected_ship)
 
 func _build_grid() -> void:
-	for c in cells.values():
-		c.queue_free()
+	for child in grid.get_children():
+		grid.remove_child(child)
+		child.queue_free()
 	cells.clear()
-	grid.columns = gsize
+	# Coluna/linha extra de coordenadas: letras em cima, numeros na esquerda.
+	grid.columns = gsize + 1
+	grid.add_child(_coord_label(""))
+	for x in gsize:
+		grid.add_child(_coord_label(char(65 + x)))
 	for y in gsize:
+		grid.add_child(_coord_label(str(y + 1)))
 		for x in gsize:
 			var cell: Cell = CellScene.instantiate()
 			grid.add_child(cell)
@@ -82,10 +109,21 @@ func _build_grid() -> void:
 			cell.shot_requested.connect(_on_cell_shot)
 			cells[Vector2i(x, y)] = cell
 
-func _place_fleet(sizes: Array) -> void:
+func _coord_label(text: String) -> Label:
+	var lbl := Label.new()
+	lbl.text = text
+	lbl.custom_minimum_size = Vector2(24, 24)
+	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	lbl.add_theme_color_override("font_color", COORD_COLOR)
+	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return lbl
+
+func _place_fleet(fleet: Array[EnemyShipDef]) -> void:
 	enemy_ships.clear()
 	var occupied: Dictionary = {}
-	for s in sizes:
+	for def in fleet:
+		var s: int = def.size
 		var attempts := 0
 		while attempts < 500:
 			attempts += 1
@@ -104,19 +142,42 @@ func _place_fleet(sizes: Array) -> void:
 					break
 			if clash:
 				continue
+			# Sprites apontam pra direita (popa arredondada na esquerda, proa afilada
+			# na direita); 90 graus vira pra baixo. body cresce pra direita/baixo,
+			# entao a popa e' o 1o segmento e a proa o ultimo.
 			var rot_deg := 0.0 if horiz else 90.0
 			for i in body.size():
 				var p: Vector2i = body[i]
 				occupied[p] = true
 				cells[p].has_ship = true
+				cells[p].armor = def.armor
+				cells[p].sonar_proof = def.sonar_proof
+				if def.sonar_proof:
+					cells[p].ship_tint = SUB_TINT
 				var tex: Texture2D = ENEMY_MID
 				if i == 0:
-					tex = ENEMY_BOW
-				elif i == body.size() - 1:
 					tex = ENEMY_STERN
+				elif i == body.size() - 1:
+					tex = ENEMY_BOW
 				cells[p].set_ship_sprite(tex, rot_deg)
-			enemy_ships.append({"cells": body, "hits": 0, "size": int(s)})
+			enemy_ships.append({"def": def, "cells": body, "hits": 0, "size": s})
 			break
+
+## Minas em casas sem navio. Nao contam como navio: so cobram tiro e combo.
+func _place_mines(n: int) -> void:
+	mines_total = 0
+	mines_exploded = 0
+	var free: Array[Vector2i] = []
+	for p in cells.keys():
+		if not cells[p].has_ship:
+			free.append(p)
+	free.shuffle()
+	for i in mini(n, free.size()):
+		cells[free[i]].has_mine = true
+		mines_total += 1
+
+func is_sunk(ship: Dictionary) -> bool:
+	return int(ship["hits"]) >= int(ship["size"])
 
 func _ship_at(coord: Vector2i) -> Dictionary:
 	for ship in enemy_ships:
@@ -128,7 +189,7 @@ func _combo_mult() -> int:
 	return maxi(0, streak - 1)
 
 func _on_cell_shot(coord: Vector2i) -> void:
-	if not _active or selected_ship == null:
+	if not _active or _busy or selected_ship == null:
 		return
 	var cell: Cell = cells[coord]
 	if not cell.is_shootable():
@@ -141,55 +202,149 @@ func _on_cell_shot(coord: Vector2i) -> void:
 
 	match kind:
 		PlayerShip.Kind.SHOT:
-			_resolve_shot(coord, cell, firing_ship)
+			if shot_fx:
+				_busy = true
+				var round_id := _round_id
+				await shot_fx.fire(firing_ship, cell.get_global_rect())
+				# Rodada reiniciada durante o voo: celulas ja foram recriadas.
+				if round_id != _round_id:
+					return
+				_busy = false
+			_resolve_shot(coord, firing_ship)
 		PlayerShip.Kind.SONAR:
 			_resolve_sonar(coord)
 
-func _resolve_shot(coord: Vector2i, cell: Cell, firing_ship: PlayerShip) -> void:
-	var ship := _ship_at(coord)
-	var is_hit := not ship.is_empty()
-	var sank := false
+## Um tiro pode atingir varias casas (salva, torpedo). Cada casa vira um
+## "golpe"; a pontuacao junta tudo num ctx so, entao almirantes/boss/nacao
+## continuam vendo um tiro por clique (is_hit/sank/chips/mult).
+func _resolve_shot(coord: Vector2i, firing_ship: PlayerShip) -> void:
+	var piercing := firing_ship.shot_type == PlayerShip.Shot.PIERCING
+	var strikes: Array[Dictionary] = []
+	for p in _shot_targets(coord, firing_ship.shot_type):
+		strikes.append(_strike(p, piercing))
+	_score_strikes(coord, strikes, firing_ship)
 
-	if is_hit:
-		ship["hits"] += 1
-		sank = ship["hits"] >= ship["size"]
-		streak += 1
+## Casas atingidas pelo tiro, a partir da casa clicada.
+## SALVO: a casa + as 4 vizinhas (so as que ainda da pra atirar).
+## TORPEDO: corre pra direita revelando agua ate bater em navio ou mina.
+func _shot_targets(coord: Vector2i, shot: PlayerShip.Shot) -> Array[Vector2i]:
+	var out: Array[Vector2i] = [coord]
+	match shot:
+		PlayerShip.Shot.SALVO:
+			for d in [Vector2i.UP, Vector2i.DOWN, Vector2i.LEFT, Vector2i.RIGHT]:
+				var p: Vector2i = coord + d
+				if cells.has(p) and cells[p].is_shootable():
+					out.append(p)
+		PlayerShip.Shot.TORPEDO:
+			out.clear()
+			for x in range(coord.x, gsize):
+				var p := Vector2i(x, coord.y)
+				var c: Cell = cells[p]
+				if not c.is_shootable():
+					continue
+				out.append(p)
+				if c.has_ship or c.has_mine:
+					break
+	return out
+
+## Aplica o tiro numa casa e diz o que aconteceu. Muda o estado visual na hora.
+func _strike(p: Vector2i, piercing: bool) -> Dictionary:
+	var cell: Cell = cells[p]
+	if cell.has_mine:
+		cell.has_mine = false
+		mines_exploded += 1
+		cell.set_state(Cell.State.MINE)
+		return {"coord": p, "mine": true}
+	var ship := _ship_at(p)
+	if ship.is_empty():
+		cell.set_state(Cell.State.WATER)
+		return {"coord": p, "water": true}
+	if cell.armor > 0 and not piercing:
+		cell.armor -= 1
+		cell.set_state(Cell.State.ARMORED)
+		return {"coord": p, "armor": true}
+	cell.armor = 0
+	ship["hits"] += 1
+	var sank := is_sunk(ship)
+	if sank:
+		for q in ship["cells"]:
+			cells[q].set_state(Cell.State.SUNK)
 	else:
+		cell.set_state(Cell.State.HIT)
+	return {"coord": p, "hit": true, "sank": sank, "ship": ship}
+
+func _score_strikes(coord: Vector2i, strikes: Array[Dictionary], firing_ship: PlayerShip) -> void:
+	var hits := 0
+	var armor_blocks := 0
+	var mines := 0
+	var sunk_ships: Array[Dictionary] = []
+	var first_ship: Dictionary = {}
+	for s in strikes:
+		if s.get("hit", false):
+			hits += 1
+			if first_ship.is_empty():
+				first_ship = s["ship"]
+			if s["sank"]:
+				sunk_ships.append(s["ship"])
+		elif s.get("armor", false):
+			armor_blocks += 1
+		elif s.get("mine", false):
+			mines += 1
+	var is_hit := hits > 0
+	# Sem acerto, so blindagem/mina: nao conta como agua, nao pontua e nao
+	# dispara efeitos de acerto/agua (ex.: almirante que paga tiro na agua).
+	var no_score := not is_hit and (armor_blocks > 0 or mines > 0)
+
+	# Mina zera o combo e tira tiro extra do navio que disparou.
+	if mines > 0:
+		streak = 0
+		for i in mines * MINE_SHOT_PENALTY:
+			if firing_ship.has_charge():
+				firing_ship.charges -= 1
+		if selected_ship == firing_ship and not firing_ship.has_charge():
+			selected_ship = null
+		_recalc_pools()
+		enemy_fleet_changed.emit()
+	if is_hit:
+		streak += 1
+	elif not no_score:
 		_water_count += 1
 		if not _keeps_combo_on_water(_water_count):
 			streak = 0
 
-	var base_chips := 0
-	if is_hit:
-		base_chips = BASE_HIT_CHIPS + (SINK_BONUS_CHIPS if sank else 0)
+	var base_chips := hits * BASE_HIT_CHIPS
+	for ship in sunk_ships:
+		base_chips += SINK_BONUS_CHIPS + (ship["def"] as EnemyShipDef).sink_bonus
 
 	var ctx: Dictionary = {
 		"coord": coord,
 		"is_hit": is_hit,
-		"sank": sank,
-		"ship_size": int(ship.get("size", 0)),
+		"sank": not sunk_ships.is_empty(),
+		"ship_size": int(first_ship.get("size", 0)),
 		"streak": streak,
 		"chips": base_chips,
 		"mult": 1 + _combo_mult(),
+		"hits": hits,
 	}
-	if Game.boss_modifier:
-		Game.boss_modifier.on_shot(ctx)
-	firing_ship.apply_shot_upgrade(ctx)
-	if Game.nation:
-		Game.nation.on_shot(ctx)
-	for adm in Game.admirals:
-		adm.on_shot(ctx)
+	if not no_score:
+		if Game.boss_modifier:
+			Game.boss_modifier.on_shot(ctx)
+		firing_ship.apply_shot_upgrade(ctx)
+		if Game.nation:
+			Game.nation.on_shot(ctx)
+		for adm in Game.admirals:
+			adm.on_shot(ctx)
 
 	var gained: int = int(floor(float(ctx["chips"]) * float(ctx["mult"])))
 	score += gained
 
-	if is_hit and sank:
-		for p in ship["cells"]:
-			cells[p].set_state(Cell.State.SUNK)
-	elif is_hit:
-		cell.set_state(Cell.State.HIT)
-	else:
-		cell.set_state(Cell.State.WATER)
+	var loot := 0
+	for ship in sunk_ships:
+		loot += (ship["def"] as EnemyShipDef).loot_money
+	if loot > 0:
+		Game.add_money(loot)
+	if not sunk_ships.is_empty():
+		enemy_fleet_changed.emit()
 
 	shot_resolved.emit({
 		"coord": coord,
@@ -197,7 +352,11 @@ func _resolve_shot(coord: Vector2i, cell: Cell, firing_ship: PlayerShip) -> void
 		"chips": int(ctx["chips"]),
 		"mult": float(ctx["mult"]),
 		"hit": is_hit,
-		"sank": sank,
+		"sank": not sunk_ships.is_empty(),
+		"loot": loot,
+		"armor": not is_hit and armor_blocks > 0 and mines == 0,
+		"mine": mines > 0,
+		"hits": hits,
 	})
 	score_changed.emit(score, target)
 	combo_changed.emit(streak, _combo_mult())
@@ -207,7 +366,7 @@ func _resolve_sonar(coord: Vector2i) -> void:
 	if _sonar_is_box():
 		use_sonar_box(coord)
 	else:
-		use_sonar_row(coord.y)
+		use_sonar_segment(coord)
 
 func _sonar_is_box() -> bool:
 	if Game.nation and Game.nation.sonar_is_box():
@@ -225,12 +384,16 @@ func _keeps_combo_on_water(water_n: int) -> bool:
 			return true
 	return false
 
-## Sonar de linha (descarte padrao). Nao pontua. Reveal puro: quem controla
+## Sonar base (descarte padrao): SONAR_SPAN casas na linha clicada, centradas
+## no clique; perto da borda desliza pra dentro e continua revelando SONAR_SPAN.
+## Era a linha inteira - forte demais (metade do tabuleiro em 3 cargas virava
+## acerto garantido alimentando combo). Nao pontua. Reveal puro: quem controla
 ## carga/ativacao e' _resolve_sonar / _on_cell_shot.
-func use_sonar_row(row: int) -> void:
-	row = clampi(row, 0, gsize - 1)
-	for x in gsize:
-		cells[Vector2i(x, row)].reveal_sonar()
+func use_sonar_segment(center: Vector2i) -> void:
+	var span := mini(SONAR_SPAN, gsize)
+	var start := clampi(center.x - int(span / 2.0), 0, gsize - span)
+	for x in range(start, start + span):
+		cells[Vector2i(x, center.y)].reveal_sonar()
 
 ## Sonar 3x3 (usado por nacoes tipo Japao).
 func use_sonar_box(center: Vector2i) -> void:
@@ -268,6 +431,7 @@ func _check_end() -> void:
 	if shots_left > 0:
 		return
 	_active = false
+	Game.clear_bought_shots()
 	if score >= target:
 		_run_round_end_effects()
 		round_won.emit()
@@ -276,7 +440,7 @@ func _check_end() -> void:
 
 func _run_round_end_effects() -> void:
 	var ctx: Dictionary = {"score": score, "target": target, "game": Game}
-	var reward := 4 + int(floor(float(score - target) / 50.0))
+	var reward := ROUND_BASE_REWARD + int(floor(float(score - target) / 50.0))
 	Game.add_money(maxi(reward, 0))
 	if Game.nation:
 		Game.nation.on_round_end(ctx)

@@ -1,4 +1,4 @@
-[gd_scene load_steps=7 format=3]
+[gd_scene load_steps=12 format=3]
 
 [ext_resource type="Script" path="res://scripts/Main.gd" id="1"]
 [ext_resource type="PackedScene" path="res://scenes/Board.tscn" id="2"]
@@ -6,6 +6,11 @@
 [ext_resource type="PackedScene" path="res://scenes/Shop.tscn" id="4"]
 [ext_resource type="PackedScene" path="res://scenes/AdmiralBar.tscn" id="5"]
 [ext_resource type="PackedScene" path="res://scenes/GameOver.tscn" id="6"]
+[ext_resource type="PackedScene" path="res://scenes/DockTransition.tscn" id="7"]
+[ext_resource type="Script" path="res://scripts/ShotFx.gd" id="8"]
+[ext_resource type="PackedScene" path="res://scenes/SinkTransition.tscn" id="9"]
+[ext_resource type="Script" path="res://scripts/ScreenFader.gd" id="10"]
+[ext_resource type="PackedScene" path="res://scenes/Hud.tscn" id="11"]
 
 [node name="Main" type="Control"]
 layout_mode = 3
@@ -22,55 +27,46 @@ layout_mode = 1
 [node name="FleetBar" parent="." instance=ExtResource("3")]
 layout_mode = 1
 
-[node name="AdmiralBar" parent="." instance=ExtResource("5")]
+[node name="Hud" parent="." instance=ExtResource("11")]
 layout_mode = 1
 
-[node name="Panel" type="PanelContainer" parent="."]
+[node name="ShotFx" type="Control" parent="."]
 layout_mode = 1
-anchors_preset = 1
-anchor_left = 1.0
+anchors_preset = 15
 anchor_right = 1.0
-offset_left = -380.0
-offset_top = 16.0
-offset_right = -16.0
-offset_bottom = 290.0
-grow_horizontal = 0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("8")
 
-[node name="VBox" type="VBoxContainer" parent="Panel"]
-layout_mode = 2
-
-[node name="Boss" type="Label" parent="Panel/VBox"]
-layout_mode = 2
-autowrap_mode = 2
-text = ""
-
-[node name="BossActions" type="HBoxContainer" parent="Panel/VBox"]
+[node name="DockTransition" parent="." instance=ExtResource("7")]
 visible = false
-layout_mode = 2
+layout_mode = 1
 
-[node name="RerollBoss" type="Button" parent="Panel/VBox/BossActions"]
-layout_mode = 2
-text = "Trocar desafio"
-
-[node name="RemoveBoss" type="Button" parent="Panel/VBox/BossActions"]
-layout_mode = 2
-text = "Remover desafio"
-
-[node name="Info" type="Label" parent="Panel/VBox"]
-layout_mode = 2
-text = "..."
-
-[node name="Result" type="Label" parent="Panel/VBox"]
-layout_mode = 2
-
-[node name="Restart" type="Button" parent="Panel/VBox"]
-layout_mode = 2
-text = "Reiniciar rodada"
+[node name="SinkTransition" parent="." instance=ExtResource("9")]
+visible = false
+layout_mode = 1
 
 [node name="Shop" parent="." instance=ExtResource("4")]
 visible = false
 layout_mode = 1
 
+[node name="AdmiralBar" parent="." instance=ExtResource("5")]
+layout_mode = 1
+
 [node name="GameOver" parent="." instance=ExtResource("6")]
 visible = false
 layout_mode = 1
+
+[node name="ScreenFader" type="ColorRect" parent="."]
+modulate = Color(1, 1, 1, 0)
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0.039216, 0.105882, 0.2, 1)
+script = ExtResource("10")

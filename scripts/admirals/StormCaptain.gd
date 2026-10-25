@@ -8,7 +8,7 @@ func _init() -> void:
 	id = &"storm"
 	display_name = "Capitao Tempestade"
 	description = "Tiros n'agua tambem rendem %d chips e nao zeram o combo." % WATER_CHIPS
-	portrait = preload("res://sprites/capitao_tempestade.png")
+	portrait = preload("res://sprites/almirantes/capitao_tempestade.png")
 
 func on_shot(ctx: Dictionary) -> void:
 	if not ctx.get("is_hit", false):

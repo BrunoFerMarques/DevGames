@@ -1,0 +1,36 @@
+[gd_resource type="Theme" load_steps=3 format=3]
+
+[ext_resource type="FontFile" uid="uid://cr2l2mlhgdk2c" path="res://fonts/Conves-Regular.ttf" id="1_conves"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_panel"]
+content_margin_left = 12.0
+content_margin_top = 10.0
+content_margin_right = 12.0
+content_margin_bottom = 10.0
+bg_color = Color(0.039216, 0.105882, 0.2, 0.9)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.75, 0.6, 0.28, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[resource]
+default_font = ExtResource("1_conves")
+default_font_size = 20
+Button/colors/font_color = Color(0.992157, 0.964706, 0.890196, 1)
+Button/colors/font_disabled_color = Color(0.6, 0.63, 0.68, 1)
+Button/colors/font_focus_color = Color(0.992157, 0.964706, 0.890196, 1)
+Button/colors/font_hover_color = Color(0.952941, 0.768627, 0.294118, 1)
+Button/colors/font_hover_pressed_color = Color(0.952941, 0.768627, 0.294118, 1)
+Button/colors/font_outline_color = Color(0.039216, 0.105882, 0.2, 1)
+Button/colors/font_pressed_color = Color(0.952941, 0.768627, 0.294118, 1)
+Button/constants/outline_size = 4
+Label/colors/font_color = Color(0.992157, 0.964706, 0.890196, 1)
+Label/colors/font_outline_color = Color(0.039216, 0.105882, 0.2, 1)
+Label/constants/outline_size = 4
+PanelContainer/styles/panel = SubResource("StyleBoxFlat_panel")
+PopupPanel/styles/panel = SubResource("StyleBoxFlat_panel")

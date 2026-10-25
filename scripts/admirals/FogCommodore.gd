@@ -8,4 +8,4 @@ func _init() -> void:
 	id = &"commodore_nevoa"
 	display_name = "Comodoro Nevoa"
 	description = "Libera trocar ou remover o desafio de boss por dinheiro, antes do primeiro tiro da rodada."
-	portrait = preload("res://sprites/comodoro_nevoa.png")
+	portrait = preload("res://sprites/almirantes/comodoro_nevoa.png")

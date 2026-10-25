@@ -26,7 +26,8 @@ func _build_cards() -> void:
 func _make_card(ship: PlayerShip) -> Dictionary:
 	var btn := Button.new()
 	btn.toggle_mode = true
-	btn.custom_minimum_size = Vector2(64 * maxi(ship.segments.size(), 1), 84)
+	# 64 do sprite + 24 da linha de carga (fonte 20px).
+	btn.custom_minimum_size = Vector2(64 * maxi(ship.segments.size(), 1), 88)
 	btn.tooltip_text = ship.display_name
 	btn.pressed.connect(func(): _board.select_ship(ship))
 
@@ -55,11 +56,20 @@ func _make_card(ship: PlayerShip) -> Dictionary:
 
 	return {"button": btn, "label": label}
 
+## Ponto global de onde sai o disparo do navio: meio do card, perto do topo.
+func muzzle_point(ship: PlayerShip) -> Vector2:
+	if not _cards.has(ship):
+		return get_global_rect().get_center()
+	var r: Rect2 = (_cards[ship]["button"] as Button).get_global_rect()
+	return Vector2(r.get_center().x, r.position.y + 24)
+
 func _refresh() -> void:
 	for ship in _cards.keys():
 		var parts: Dictionary = _cards[ship]
 		var btn: Button = parts["button"]
 		var label: Label = parts["label"]
-		label.text = "%d/%d" % [ship.charges, ship.max_charges]
+		label.text = "%d/%d" % [ship.charges, ship.round_capacity()]
+		if ship.shot_tag() != "":
+			label.text += " " + ship.shot_tag()
 		btn.disabled = not ship.has_charge()
 		btn.button_pressed = (ship == _board.selected_ship)

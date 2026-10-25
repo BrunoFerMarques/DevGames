@@ -12,11 +12,20 @@ signal run_started
 const GRID_SIZE := 10        ## tamanho maximo (layout/camera). Atual = grid_size.
 const MAX_ADMIRALS := 5      ## teto de coringas, igual ao limite de jokers do Balatro.
 const ADMIRAL_SELL_REFUND := 3   ## metade do preco de compra (Shop.ADMIRAL_PRICE = 7)
+const CARGO_CHANCE := 0.35       ## chance de cada navio (menos o 1o) ser cargueiro
+const TREASURE_CHANCE := 0.15    ## chance por rodada de ter um navio-tesouro
+const ARMOR_FROM_ANTE := 2       ## blindagem so aparece depois do 1o ante
+const ARMOR_CHANCE := 0.35       ## chance de um navio de guerra vir blindado
+const SUB_FROM_ANTE := 2         ## submarino (invisivel ao sonar) a partir do ante 2
+const SUB_CHANCE := 0.4          ## chance de 1 navio pequeno (<=3) ser submarino
+## Tiro nao recarrega sozinho: a loja abre antes de toda rodada (inclusive a
+## 1a) e cada tiro e' comprado. Dinheiro inicial paga a carga da 1a rodada.
+const START_MONEY := 12
 
 var nation = null            # Effect ou null
 var admirals: Array = []     # Array de Effect (coringas comprados na loja)
 var player_ships: Array[PlayerShip] = []   # Frota de navios-carta do jogador
-var money: int = 0
+var money: int = START_MONEY
 var ante: int = 1
 var round_in_ante: int = 1
 var boss_modifier = null     # Effect ou null - so ativo na 3a rodada de cada ante
@@ -24,15 +33,19 @@ var boss_modifier = null     # Effect ou null - so ativo na 3a rodada de cada an
 # --- Config recalculada a cada rodada ---
 var grid_size: int = 6
 var target_score: int = 300
-var enemy_ship_sizes: Array[int] = [5, 4, 4]
+var enemy_fleet: Array[EnemyShipDef] = []
+var mine_count: int = 0      # minas soltas no tabuleiro (custam 1 tiro e o combo)
 var _base_target_score: int = 300   # meta antes do desafio de boss
 
 func _ready() -> void:
 	randomize()
+	# A loja abre antes da 1a rodada e ja precisa da frota pra vender tiros.
+	if player_ships.is_empty():
+		_build_starting_fleet()
 
 func reset_run() -> void:
 	admirals.clear()
-	money = 0
+	money = START_MONEY
 	ante = 1
 	round_in_ante = 1
 	boss_modifier = null
@@ -42,8 +55,13 @@ func reset_run() -> void:
 		for ship in player_ships:
 			ship.upgrade = null
 			ship.upgrade_level = 0
+			ship.shot_type = PlayerShip.Shot.NORMAL
+		clear_bought_shots()
 	if nation:
 		nation.on_run_start(self)
+	# Barra de Almirantes e HUD de dinheiro so redesenham ouvindo esses sinais.
+	admirals_changed.emit()
+	money_changed.emit(money)
 	run_started.emit()
 
 func add_money(amount: int) -> void:
@@ -92,22 +110,30 @@ func refill_player_ships() -> void:
 				n = adm.modify_sonar(n)
 		ship.charges = maxi(0, n)
 
+## Tiro comprado vale so pra rodada seguinte a compra.
+func clear_bought_shots() -> void:
+	for ship in player_ships:
+		ship.bought_shots = 0
+
 ## Frota fixa do MVP (sem loja ainda): 1 grande (4 cargas), 2 pequenos
-## (2 cargas cada) e 1 sonar (3 cargas).
+## (3 cargas cada) e 1 sonar (3 cargas). Pequenos subiram de 2 pra 3 quando o
+## sonar encolheu de linha inteira pra 3 casas: poder sai da informacao e vai
+## pro tiro.
 func _build_starting_fleet() -> void:
-	var bow: Texture2D = load("res://sprites/bow.png")
-	var mid: Texture2D = load("res://sprites/mid.png")
-	var stern: Texture2D = load("res://sprites/stern.png")
-	var sonar_tex: Texture2D = load("res://sprites/sonar.png")
+	var bow: Texture2D = load("res://sprites/frota/bow.png")
+	var mid: Texture2D = load("res://sprites/frota/mid.png")
+	var stern: Texture2D = load("res://sprites/frota/stern.png")
+	var sonar_tex: Texture2D = load("res://sprites/frota/sonar.png")
 	player_ships = [
 		PlayerShip.new(&"battleship", "Encouracado", PlayerShip.Kind.SHOT,
 			[bow, mid, stern], 4),
 		PlayerShip.new(&"destroyer_a", "Destroyer A", PlayerShip.Kind.SHOT,
-			[bow, stern], 2),
+			[bow, stern], 3),
 		PlayerShip.new(&"destroyer_b", "Destroyer B", PlayerShip.Kind.SHOT,
-			[bow, stern], 2),
+			[bow, stern], 3),
+		# sonar.png tem as duas pontas cortadas - precisa de proa e popa em volta.
 		PlayerShip.new(&"sonar_ship", "Navio-sonar", PlayerShip.Kind.SONAR,
-			[sonar_tex], 3),
+			[bow, sonar_tex, stern], 3),
 	]
 
 ## Recalcula meta e frota inimiga com base no ante/rodada atuais.
@@ -118,7 +144,8 @@ func configure_round() -> void:
 	var round_mult := 1.0 + 0.5 * (round_in_ante - 1)
 	_base_target_score = int(300.0 * ante_mult * round_mult)
 	grid_size = _grid_for_ante(ante)
-	enemy_ship_sizes = _sizes_for_ante(ante)
+	enemy_fleet = _fleet_for_ante(ante)
+	mine_count = _mines_for_ante(ante)
 	boss_modifier = _pick_boss() if round_in_ante == 3 else null
 	_apply_boss_target()
 
@@ -157,6 +184,34 @@ func _grid_for_ante(a: int) -> int:
 		3: return 8
 		4: return 9
 		_: return GRID_SIZE
+
+## Tamanhos fixos por ante; o tipo de cada navio e' sorteado. Cargueiros no
+## maximo 2 e sempre sobra navio de guerra. Navio-tesouro (raro) vem como
+## navio EXTRA de 2 casas. O saque aparece na lista da frota (escolha de alvo).
+func _fleet_for_ante(a: int) -> Array[EnemyShipDef]:
+	var sizes := _sizes_for_ante(a)
+	var cargo_count := 0
+	var has_sub := false
+	var out: Array[EnemyShipDef] = []
+	for i in sizes.size():
+		var s: int = sizes[i]
+		if not has_sub and i > 0 and s <= 3 and a >= SUB_FROM_ANTE and randf() < SUB_CHANCE:
+			out.append(EnemyShipDef.submarine(s))
+			has_sub = true
+		elif cargo_count < 2 and i > 0 and randf() < CARGO_CHANCE:
+			out.append(EnemyShipDef.cargo(s))
+			cargo_count += 1
+		elif a >= ARMOR_FROM_ANTE and randf() < ARMOR_CHANCE:
+			out.append(EnemyShipDef.armored(s))
+		else:
+			out.append(EnemyShipDef.warship(s))
+	if randf() < TREASURE_CHANCE:
+		out.append(EnemyShipDef.treasure())
+	return out
+
+## Sem minas no 1o ante (aprendizado); depois cresce ate 3.
+func _mines_for_ante(a: int) -> int:
+	return clampi(a - 1, 0, 3)
 
 ## Antes iniciais: poucos navios, grandes. Depois: mais navios, menores.
 func _sizes_for_ante(a: int) -> Array[int]:

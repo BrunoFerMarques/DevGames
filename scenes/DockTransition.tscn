@@ -1,0 +1,132 @@
+[gd_scene load_steps=9 format=3]
+
+[ext_resource type="Script" path="res://scripts/DockTransition.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/SpriteSheetPlayer.gd" id="2"]
+[ext_resource type="Texture2D" path="res://sprites/background/doca_fundo.png" id="3"]
+[ext_resource type="Texture2D" path="res://sprites/frota/navio_guerra.png" id="4"]
+[ext_resource type="Texture2D" path="res://sprites/efeitos/esteira_rapida_sheet.png" id="5"]
+[ext_resource type="Texture2D" path="res://sprites/efeitos/esteira_lenta_sheet.png" id="6"]
+[ext_resource type="Texture2D" path="res://sprites/efeitos/onda_proa_sheet.png" id="7"]
+[ext_resource type="Texture2D" path="res://sprites/efeitos/fumaca_chamine_sheet.png" id="8"]
+
+[node name="DockTransition" type="Control"]
+texture_filter = 1
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1")
+
+[node name="Stage" type="Control" parent="."]
+layout_mode = 1
+anchors_preset = 0
+offset_right = 640.0
+offset_bottom = 384.0
+mouse_filter = 2
+
+[node name="Background" type="TextureRect" parent="Stage"]
+layout_mode = 1
+anchors_preset = 0
+offset_right = 640.0
+offset_bottom = 384.0
+mouse_filter = 2
+texture = ExtResource("3")
+
+[node name="Water" type="Control" parent="Stage"]
+clip_contents = true
+layout_mode = 1
+anchors_preset = 0
+offset_right = 640.0
+offset_bottom = 236.0
+mouse_filter = 2
+
+[node name="Ship" type="Control" parent="Stage/Water"]
+layout_mode = 1
+anchors_preset = 0
+offset_left = 288.0
+offset_top = 184.0
+offset_right = 480.0
+offset_bottom = 248.0
+mouse_filter = 2
+
+[node name="WakeFast" type="TextureRect" parent="Stage/Water/Ship"]
+layout_mode = 1
+anchors_preset = 0
+offset_left = -152.0
+offset_top = -16.0
+offset_right = 8.0
+offset_bottom = 80.0
+script = ExtResource("2")
+sheet = ExtResource("5")
+frame_count = 4
+frame_width = 160
+fps = 10.0
+loop = true
+fill_parent = false
+
+[node name="WakeSlow" type="TextureRect" parent="Stage/Water/Ship"]
+layout_mode = 1
+anchors_preset = 0
+offset_left = -152.0
+offset_top = -16.0
+offset_right = 8.0
+offset_bottom = 80.0
+script = ExtResource("2")
+sheet = ExtResource("6")
+frame_count = 4
+frame_width = 160
+fps = 6.0
+loop = true
+fill_parent = false
+
+[node name="BowWave" type="TextureRect" parent="Stage/Water/Ship"]
+layout_mode = 1
+anchors_preset = 0
+offset_left = 112.0
+offset_top = -16.0
+offset_right = 192.0
+offset_bottom = 80.0
+script = ExtResource("2")
+sheet = ExtResource("7")
+frame_count = 4
+frame_width = 80
+fps = 10.0
+loop = true
+fill_parent = false
+
+[node name="Hull" type="TextureRect" parent="Stage/Water/Ship"]
+layout_mode = 1
+anchors_preset = 0
+offset_right = 192.0
+offset_bottom = 64.0
+mouse_filter = 2
+texture = ExtResource("4")
+
+[node name="Smoke" type="TextureRect" parent="Stage/Water/Ship"]
+layout_mode = 1
+anchors_preset = 0
+offset_left = 80.0
+offset_top = 4.0
+offset_right = 144.0
+offset_bottom = 68.0
+flip_h = true
+script = ExtResource("2")
+sheet = ExtResource("8")
+frame_count = 6
+fps = 8.0
+loop = true
+fill_parent = false
+
+[node name="Title" type="Label" parent="."]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_top = 32.0
+offset_bottom = 80.0
+grow_horizontal = 2
+theme_override_colors/font_color = Color(0.952941, 0.768627, 0.294118, 1)
+theme_override_font_sizes/font_size = 40
+text = "Rodada vencida!"
+horizontal_alignment = 1

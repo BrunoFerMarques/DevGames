@@ -1,9 +1,10 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene format=3]
 
 [ext_resource type="Script" path="res://scripts/Shop.gd" id="1"]
 [ext_resource type="Texture2D" path="res://textures/shipyard_bg.png" id="2"]
 
 [node name="Shop" type="Control"]
+texture_filter = 1
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -23,50 +24,143 @@ texture = ExtResource("2")
 expand_mode = 1
 stretch_mode = 6
 
-[node name="Panel" type="PanelContainer" parent="."]
+[node name="TopBar" type="PanelContainer" parent="."]
 layout_mode = 1
-anchors_preset = 8
-anchor_left = 0.5
-anchor_top = 0.5
-anchor_right = 0.5
-anchor_bottom = 0.5
-offset_left = -360.0
-offset_top = -255.0
-offset_right = 360.0
-offset_bottom = 255.0
+anchors_preset = 10
+anchor_right = 1.0
+offset_left = 128.0
+offset_top = 12.0
+offset_right = -16.0
+offset_bottom = 60.0
 grow_horizontal = 2
-grow_vertical = 2
 
-[node name="VBox" type="VBoxContainer" parent="Panel"]
+[node name="HBox" type="HBoxContainer" parent="TopBar"]
 layout_mode = 2
-theme_override_constants/separation = 12
+theme_override_constants/separation = 24
 
-[node name="Title" type="Label" parent="Panel/VBox"]
+[node name="Title" type="Label" parent="TopBar/HBox"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 28
-text = "Loja"
-horizontal_alignment = 1
+theme_override_font_sizes/font_size = 30
+text = "LOJA"
 
-[node name="Money" type="Label" parent="Panel/VBox"]
+[node name="RoundInfo" type="Label" parent="TopBar/HBox"]
 layout_mode = 2
-horizontal_alignment = 1
-text = "Dinheiro: 0"
+size_flags_horizontal = 3
+text = "Próxima rodada"
+vertical_alignment = 1
 
-[node name="Items" type="HBoxContainer" parent="Panel/VBox"]
+[node name="Money" type="Label" parent="TopBar/HBox"]
 layout_mode = 2
-size_flags_vertical = 3
-alignment = 1
-theme_override_constants/separation = 16
+theme_override_colors/font_color = Color(0.952941, 0.768627, 0.294118, 1)
+theme_override_font_sizes/font_size = 30
+text = "$0"
 
-[node name="Actions" type="HBoxContainer" parent="Panel/VBox"]
+[node name="Upgrades" type="PanelContainer" parent="."]
+layout_mode = 0
+offset_left = 128.0
+offset_top = 72.0
+offset_right = 764.0
+offset_bottom = 328.0
+
+[node name="VBox" type="VBoxContainer" parent="Upgrades"]
 layout_mode = 2
-alignment = 1
-theme_override_constants/separation = 16
+theme_override_constants/separation = 8
 
-[node name="Reroll" type="Button" parent="Panel/VBox/Actions"]
+[node name="Header" type="HBoxContainer" parent="Upgrades/VBox"]
+layout_mode = 2
+
+[node name="Title" type="Label" parent="Upgrades/VBox/Header"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.952941, 0.768627, 0.294118, 1)
+text = "MELHORIAS E ARMAMENTO"
+
+[node name="Reroll" type="Button" parent="Upgrades/VBox/Header"]
 layout_mode = 2
 text = "Reroll (2)"
 
-[node name="Continue" type="Button" parent="Panel/VBox/Actions"]
+[node name="Items" type="HBoxContainer" parent="Upgrades/VBox"]
 layout_mode = 2
-text = "Continuar"
+size_flags_vertical = 3
+theme_override_constants/separation = 12
+
+[node name="Admirals" type="PanelContainer" parent="."]
+layout_mode = 0
+offset_left = 128.0
+offset_top = 340.0
+offset_right = 764.0
+offset_bottom = 636.0
+
+[node name="VBox" type="VBoxContainer" parent="Admirals"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Header" type="HBoxContainer" parent="Admirals/VBox"]
+layout_mode = 2
+
+[node name="Title" type="Label" parent="Admirals/VBox/Header"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.952941, 0.768627, 0.294118, 1)
+text = "ALMIRANTES"
+
+[node name="Count" type="Label" parent="Admirals/VBox/Header"]
+layout_mode = 2
+text = "0/5"
+
+[node name="Items" type="HBoxContainer" parent="Admirals/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 12
+
+[node name="Shots" type="PanelContainer" parent="."]
+layout_mode = 1
+anchors_preset = 11
+anchor_left = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -376.0
+offset_top = 72.0
+offset_right = -16.0
+offset_bottom = -12.0
+grow_horizontal = 0
+grow_vertical = 2
+
+[node name="VBox" type="VBoxContainer" parent="Shots"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="Title" type="Label" parent="Shots/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.952941, 0.768627, 0.294118, 1)
+text = "TIROS DA RODADA"
+
+[node name="Info" type="Label" parent="Shots/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.6, 0.63, 0.68, 1)
+text = "..."
+autowrap_mode = 3
+
+[node name="Rows" type="VBoxContainer" parent="Shots/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="Total" type="Label" parent="Shots/VBox"]
+layout_mode = 2
+text = "Total: 0 tiros"
+
+[node name="Spacer" type="Control" parent="Shots/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="Warning" type="Label" parent="Shots/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.894118, 0.235294, 0.309804, 1)
+text = " "
+autowrap_mode = 3
+
+[node name="Continue" type="Button" parent="Shots/VBox"]
+custom_minimum_size = Vector2(0, 56)
+layout_mode = 2
+theme_override_font_sizes/font_size = 30
+text = "Zarpar"

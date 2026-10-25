@@ -2,79 +2,138 @@ extends Button
 class_name Cell
 ## Uma celula clicavel do tabuleiro alvo.
 
-enum State { HIDDEN, WATER, HIT, SUNK, SONAR_SHIP, SONAR_EMPTY }
+## ARMORED: casa blindada que ja levou um tiro sem furar (ainda da pra atirar).
+## MINE: mina detonada. SONAR_MINE: sonar achou mina (da pra atirar, mas explode).
+enum State { HIDDEN, WATER, HIT, SUNK, SONAR_SHIP, SONAR_EMPTY, ARMORED, MINE, SONAR_MINE }
 
 signal shot_requested(coord: Vector2i)
 
 var coord: Vector2i
 var state: State = State.HIDDEN
 var has_ship: bool = false
+## Tiros que ainda so amassam a blindagem antes de virar acerto.
+var armor: int = 0
+var has_mine: bool = false
+## Navio submerso: o sonar responde "vazio" aqui.
+var sonar_proof: bool = false
+## Cor do segmento quando aparece (submarino fica esverdeado).
+var ship_tint: Color = Color.WHITE
 
 var _ship_tex: Texture2D = null
 var _ship_rot_deg: float = 0.0
+var _mark: TextureRect
 var _sprite: TextureRect
 var _hit_fx: SpriteSheetPlayer
 var _sunk_burst: SpriteSheetPlayer
 var _sunk_fire: SpriteSheetPlayer
+var _splash: SpriteSheetPlayer
+var _sonar_blip: SpriteSheetPlayer
+var _burnt: SpriteSheetPlayer
+var _sparks: SpriteSheetPlayer
 
-const HIT_SMOKE_SHEET: Texture2D = preload("res://sprites/hit_smoke_sheet.png")
-const SUNK_BURST_SHEET: Texture2D = preload("res://sprites/hits.png")
-const SUNK_FIRE_SHEET: Texture2D = preload("res://sprites/hit_fire_sheet.png")
+const HIT_SMOKE_SHEET: Texture2D = preload("res://sprites/efeitos/hit_smoke_sheet.png")
+const SUNK_BURST_SHEET: Texture2D = preload("res://sprites/efeitos/hits.png")
+const SUNK_FIRE_SHEET: Texture2D = preload("res://sprites/efeitos/hit_fire_sheet.png")
+const WATER_SPLASH_SHEET: Texture2D = preload("res://sprites/efeitos/agua_respingo_sheet.png")
+const WATER_MARK: Texture2D = preload("res://sprites/tabuleiro/agua_marca.png")
+const SONAR_SHIP_SHEET: Texture2D = preload("res://sprites/tabuleiro/sonar_navio_sheet.png")
+const SONAR_EMPTY_MARK: Texture2D = preload("res://sprites/tabuleiro/sonar_vazio.png")
+const BURNT_SHEET: Texture2D = preload("res://sprites/tabuleiro/queimado_sheet.png")
+const SPARK_SHEET: Texture2D = preload("res://sprites/efeitos/faisca_blindagem_sheet.png")
+const MINE_MARK: Texture2D = preload("res://sprites/tabuleiro/mina_detonada.png")
+const SONAR_MINE_MARK: Texture2D = preload("res://sprites/tabuleiro/sonar_mina.png")
 
-const COLORS := {
-	State.HIDDEN: Color("#1e3a5f"),
-	State.WATER: Color("#2a6f97"),
-	State.HIT: Color("#e63946"),
-	State.SUNK: Color("#6a040f"),
-	State.SONAR_SHIP: Color("#f4a261"),
-	State.SONAR_EMPTY: Color("#3d5a80"),
+# Ladrilho pixel art de cada estado. Celula ja atirada fica "afundada" (relevo
+# invertido); vermelho so pra acerto; sonar e' informacao, entao fica no teal.
+const TILE_TEX := {
+	State.HIDDEN: preload("res://sprites/tabuleiro/celula_oculta.png"),
+	State.WATER: preload("res://sprites/tabuleiro/celula_agua.png"),
+	State.HIT: preload("res://sprites/tabuleiro/celula_acerto.png"),
+	State.SUNK: preload("res://sprites/tabuleiro/celula_afundado.png"),
+	State.SONAR_SHIP: preload("res://sprites/tabuleiro/celula_sonar.png"),
+	State.SONAR_EMPTY: preload("res://sprites/tabuleiro/celula_oculta.png"),
+	State.ARMORED: preload("res://sprites/tabuleiro/celula_blindada.png"),
+	State.MINE: preload("res://sprites/tabuleiro/celula_agua.png"),
+	State.SONAR_MINE: preload("res://sprites/tabuleiro/celula_oculta.png"),
 }
+const HOVER_TEX: Texture2D = preload("res://sprites/tabuleiro/celula_hover.png")
+const TILE_MARGIN := 8   # borda de 2px da arte (x4); o miolo repete em vez de esticar
+
+static var _style_cache: Dictionary = {}
+
+static func _tile_style(tex: Texture2D) -> StyleBoxTexture:
+	if not _style_cache.has(tex):
+		var sb := StyleBoxTexture.new()
+		sb.texture = tex
+		sb.set_texture_margin_all(TILE_MARGIN)
+		sb.axis_stretch_horizontal = StyleBoxTexture.AXIS_STRETCH_MODE_TILE
+		sb.axis_stretch_vertical = StyleBoxTexture.AXIS_STRETCH_MODE_TILE
+		_style_cache[tex] = sb
+	return _style_cache[tex]
 
 func _ready() -> void:
 	custom_minimum_size = Vector2(56, 56)
 	focus_mode = Control.FOCUS_NONE
+	# Sprites sao pixel art; os filhos herdam o filtro.
+	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	pressed.connect(_on_pressed)
-	_sprite = TextureRect.new()
-	_sprite.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_sprite.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	_sprite.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_sprite.visible = false
-	add_child(_sprite)
+	_mark = _new_overlay()
+	_sprite = _new_overlay()
 
-	_hit_fx = SpriteSheetPlayer.new()
-	_hit_fx.sheet = HIT_SMOKE_SHEET
-	_hit_fx.frame_count = 4
-	_hit_fx.fps = 10.0
-	add_child(_hit_fx)
+	_hit_fx = _new_sheet(HIT_SMOKE_SHEET, 4, 10.0)
 
-	_sunk_burst = SpriteSheetPlayer.new()
-	_sunk_burst.sheet = SUNK_BURST_SHEET
-	_sunk_burst.frame_count = 6
-	_sunk_burst.fps = 14.0
+	_sunk_burst = _new_sheet(SUNK_BURST_SHEET, 6, 14.0)
 	_sunk_burst.finished.connect(func():
 		if state == State.SUNK:
 			_sunk_fire.play()
 	)
-	add_child(_sunk_burst)
+	_sunk_fire = _new_sheet(SUNK_FIRE_SHEET, 4, 8.0, true)
 
-	_sunk_fire = SpriteSheetPlayer.new()
-	_sunk_fire.sheet = SUNK_FIRE_SHEET
-	_sunk_fire.frame_count = 4
-	_sunk_fire.fps = 8.0
-	_sunk_fire.loop = true
-	add_child(_sunk_fire)
+	# Respingo termina e deixa a marca fixa de agua no lugar.
+	_splash = _new_sheet(WATER_SPLASH_SHEET, 6, 14.0)
+	_splash.finished.connect(func():
+		if state == State.WATER:
+			_mark.visible = true
+	)
+
+	_sonar_blip = _new_sheet(SONAR_SHIP_SHEET, 8, 8.0, true)
+	_burnt = _new_sheet(BURNT_SHEET, 4, 6.0, true)
+	_sparks = _new_sheet(SPARK_SHEET, 4, 14.0)
 
 	_refresh()
+
+func _new_overlay() -> TextureRect:
+	var rect := TextureRect.new()
+	rect.set_anchors_preset(Control.PRESET_FULL_RECT)
+	rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	rect.visible = false
+	add_child(rect)
+	return rect
+
+func _new_sheet(sheet: Texture2D, frames: int, fps: float, loop: bool = false) -> SpriteSheetPlayer:
+	var player := SpriteSheetPlayer.new()
+	player.sheet = sheet
+	player.frame_count = frames
+	player.fps = fps
+	player.loop = loop
+	add_child(player)
+	return player
 
 func setup(c: Vector2i, ship: bool) -> void:
 	coord = c
 	has_ship = ship
+	armor = 0
+	has_mine = false
+	sonar_proof = false
+	ship_tint = Color.WHITE
 	state = State.HIDDEN
 	_ship_tex = null
 	_ship_rot_deg = 0.0
 	_hit_fx.stop()
 	_sunk_burst.stop()
 	_sunk_fire.stop()
+	_splash.stop()
 	_refresh()
 
 ## Segmento do navio inimigo que ocupa esta celula. So fica visivel no HIT/SUNK.
@@ -84,7 +143,7 @@ func set_ship_sprite(tex: Texture2D, rot_deg: float) -> void:
 	_refresh()
 
 func is_shootable() -> bool:
-	return state == State.HIDDEN or state == State.SONAR_SHIP or state == State.SONAR_EMPTY
+	return state in [State.HIDDEN, State.SONAR_SHIP, State.SONAR_EMPTY, State.ARMORED, State.SONAR_MINE]
 
 func set_state(s: State) -> void:
 	var prev := state
@@ -95,12 +154,24 @@ func set_state(s: State) -> void:
 	elif s == State.SUNK and prev != State.SUNK:
 		_hit_fx.stop()
 		_sunk_burst.play()
+	elif s == State.WATER and prev != State.WATER:
+		_mark.visible = false
+		_splash.play()
+	elif s == State.ARMORED:
+		_sparks.play()
+	elif s == State.MINE and prev != State.MINE:
+		_sunk_burst.play()
 
-## Sonar so marca celulas ainda ocultas.
+## Sonar so marca celulas ainda ocultas. Submarino passa batido (le como vazio).
 func reveal_sonar() -> void:
 	if state != State.HIDDEN:
 		return
-	state = State.SONAR_SHIP if has_ship else State.SONAR_EMPTY
+	if has_ship and not sonar_proof:
+		state = State.SONAR_SHIP
+	elif has_mine:
+		state = State.SONAR_MINE
+	else:
+		state = State.SONAR_EMPTY
 	_refresh()
 
 func _on_pressed() -> void:
@@ -108,33 +179,44 @@ func _on_pressed() -> void:
 		shot_requested.emit(coord)
 
 func _refresh() -> void:
-	# TODO: cachear os styleboxes em vez de recriar a cada refresh.
-	var col: Color = COLORS[state]
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = col
-	sb.set_corner_radius_all(4)
-	sb.set_border_width_all(2)
-	sb.border_color = col.lightened(0.25)
-	for slot in ["normal", "hover", "pressed", "focus", "disabled"]:
-		add_theme_stylebox_override(slot, sb)
-	add_theme_color_override("font_color", Color.WHITE)
+	var base := _tile_style(TILE_TEX[state])
+	# Hover com cantos teal (mesma linguagem da mira) so onde ainda da pra atirar.
+	var hover := _tile_style(HOVER_TEX) if is_shootable() else base
+	for slot in ["normal", "disabled"]:
+		add_theme_stylebox_override(slot, base)
+	for slot in ["hover", "pressed", "hover_pressed"]:
+		add_theme_stylebox_override(slot, hover)
+	add_theme_stylebox_override("focus", StyleBoxEmpty.new())
 
-	var show_ship := (state == State.HIT or state == State.SUNK) and _ship_tex != null
+	var hit_or_sunk := state == State.HIT or state == State.SUNK
+	var show_ship := hit_or_sunk and _ship_tex != null
 	_sprite.visible = show_ship
 	if show_ship:
 		_sprite.texture = _ship_tex
 		_sprite.pivot_offset = _sprite.size / 2.0
 		_sprite.rotation_degrees = _ship_rot_deg
-		_sprite.modulate = Color(0.55, 0.15, 0.15) if state == State.SUNK else Color.WHITE
+		_sprite.modulate = ship_tint * (Color(0.55, 0.15, 0.15) if state == State.SUNK else Color.WHITE)
 
+	var mark: Texture2D = null
 	match state:
-		State.HIT:
-			text = "" if show_ship else "X"
-		State.SUNK:
-			text = "" if show_ship else "#"
-		State.WATER, State.SONAR_EMPTY:
-			text = "~"
-		State.SONAR_SHIP:
-			text = "?"
-		_:
-			text = ""
+		State.WATER:
+			mark = WATER_MARK
+		State.SONAR_EMPTY:
+			mark = SONAR_EMPTY_MARK
+		State.MINE:
+			mark = MINE_MARK
+		State.SONAR_MINE:
+			mark = SONAR_MINE_MARK
+	_mark.texture = mark
+	_mark.visible = mark != null and not _splash.visible
+
+	_set_looping(_sonar_blip, state == State.SONAR_SHIP)
+	# Fallback: acerto sem segmento de navio vira marca de queimado.
+	_set_looping(_burnt, hit_or_sunk and _ship_tex == null)
+
+## Liga/desliga uma animacao em loop sem reiniciar a que ja esta tocando.
+func _set_looping(player: SpriteSheetPlayer, on: bool) -> void:
+	if not on:
+		player.stop()
+	elif not player.visible:
+		player.play()
