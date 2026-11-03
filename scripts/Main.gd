@@ -1,5 +1,6 @@
 extends Control
-## Casca jogavel: instancia Board + FleetBar + Hud, e troca pra
+## Casca jogavel: abre na tela de inicio (StartScreen), instancia
+## Board + FleetBar + Hud, e troca pra
 ## Shop (mesma cena, so visibilidade) quando a rodada e vencida, passando
 ## pela animacao do navio atracando (DockTransition) e pela carta nautica
 ## (LevelMap) com o caminho de fases. Na derrota passa pelo
@@ -19,6 +20,7 @@ const LAST_SHOT_DELAY := 0.6   # explosao/respingo do ultimo tiro duram ~0.45s
 @onready var shot_fx: ShotFx = $ShotFx
 @onready var sink: SinkTransition = $SinkTransition
 @onready var fader: ScreenFader = $ScreenFader
+@onready var start_screen: StartScreen = $StartScreen
 
 func _ready() -> void:
 	board.round_won.connect(_on_round_won)
@@ -36,9 +38,22 @@ func _ready() -> void:
 	admiral_bar.sell_requested.connect(_on_sell_admiral)
 	game_over.restart.connect(_on_game_over_restart)
 	game_over.resume.connect(_on_resume_checkpoint)
-	# A run comeca na carta nautica (parada 1) e de la vai pra loja comprar tiros.
-	Game.configure_round()
-	_show_map(false)
+	start_screen.play.connect(_on_start_play)
+	start_screen.resume.connect(_on_resume_checkpoint)
+	# Abre na tela de inicio; "Jogar" leva pra carta nautica (parada 1) e de
+	# la pra loja comprar tiros.
+	_set_board_visible(false)
+	admiral_bar.visible = false
+	start_screen.open()
+
+## "Jogar" na tela de inicio: run do zero e carta nautica na parada 1.
+func _on_start_play() -> void:
+	fader.swap(func():
+		start_screen.close()
+		Game.reset_run()
+		Game.configure_round()
+		_show_map(false)
+	)
 
 func _on_round_lost() -> void:
 	await get_tree().create_timer(LAST_SHOT_DELAY).timeout
@@ -69,6 +84,7 @@ func _on_game_over_restart() -> void:
 ## almirantes e navios daquele momento (fim de jogo ou inicio do jogo).
 func _on_resume_checkpoint() -> void:
 	fader.swap(func():
+		start_screen.close()
 		game_over.visible = false
 		sink.stop()
 		Game.load_checkpoint()
