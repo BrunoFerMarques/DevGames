@@ -239,7 +239,7 @@ theme_override_constants/separation = 14
 alignment = 1
 
 [node name="LogoBox" type="Control" parent="Menu"]
-custom_minimum_size = Vector2(0, 350)
+custom_minimum_size = Vector2(0, 330)
 layout_mode = 2
 mouse_filter = 2
 
@@ -290,6 +290,14 @@ theme_override_styles/hover = SubResource("StyleBoxFlat_navy_hover")
 theme_override_styles/pressed = SubResource("StyleBoxFlat_navy_pressed")
 theme_override_styles/normal = SubResource("StyleBoxFlat_navy")
 text = "Sair"
+
+[node name="Shake" type="CheckButton" parent="Menu"]
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_font_sizes/font_size = 18
+theme_override_styles/focus = SubResource("StyleBoxFlat_focus")
+button_pressed = true
+text = "Tremor de tela"
 
 [node name="Record" type="Label" parent="Menu"]
 visible = false

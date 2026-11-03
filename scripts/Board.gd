@@ -292,6 +292,10 @@ func _ship_at(coord: Vector2i) -> Dictionary:
 			return ship
 	return {}
 
+## Retangulo global da casa (efeitos que nascem em cima dela).
+func cell_rect(coord: Vector2i) -> Rect2:
+	return (cells[coord] as Cell).get_global_rect()
+
 func _combo_mult() -> int:
 	return maxi(0, streak - 1)
 

@@ -1,7 +1,8 @@
 extends Node
 ## Estado da run inteira. Autoload "Game".
 ## Tambem guarda o caminho de fases (rotas escolhidas, estrelas por parada),
-## o recorde e o checkpoint do ultimo chefe vencido, salvos em SAVE_PATH.
+## o recorde e o checkpoint do ultimo chefe vencido, salvos em SAVE_PATH
+## junto com as opcoes (tremor de tela).
 ## nation/admirals guardam Effect (coringas/nacoes plugaveis) em duck-typing,
 ## sem depender do tipo, ja que sao carregados de fora (loja/selecao).
 ## player_ships e' estado proprio do Game (frota fixa do MVP), por isso
@@ -72,6 +73,7 @@ var _bosses: Dictionary = {}     # ante -> Effect (sorteado cedo pro mapa mostra
 # --- Salvo em disco ---
 var best_index: int = 0      # parada mais longe ja alcancada (recorde)
 var checkpoint: Dictionary = {}  # estado logo apos o ultimo chefe vencido
+var screen_shake: bool = true    # opcao de acessibilidade (tela de inicio)
 
 func _ready() -> void:
 	randomize()
@@ -331,10 +333,16 @@ func load_checkpoint() -> void:
 	admirals_changed.emit()
 	money_changed.emit(money)
 
+## Liga/desliga todo tremor de tela (golpes, painel, naufragio) e salva.
+func set_screen_shake(on: bool) -> void:
+	screen_shake = on
+	_save_progress()
+
 func _save_progress() -> void:
 	var cfg := ConfigFile.new()
 	cfg.set_value("progresso", "best_index", best_index)
 	cfg.set_value("progresso", "checkpoint", checkpoint)
+	cfg.set_value("opcoes", "tremor", screen_shake)
 	cfg.save(SAVE_PATH)
 
 func _load_progress() -> void:
@@ -343,6 +351,7 @@ func _load_progress() -> void:
 		return
 	best_index = cfg.get_value("progresso", "best_index", 0)
 	checkpoint = cfg.get_value("progresso", "checkpoint", {})
+	screen_shake = cfg.get_value("opcoes", "tremor", true)
 
 ## Grade menor nos antes iniciais, cresce ate o maximo.
 func _grid_for_ante(a: int) -> int:

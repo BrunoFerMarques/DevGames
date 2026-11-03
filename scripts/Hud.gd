@@ -311,6 +311,8 @@ func _pop(node: Control, amount: float = 1.25, delay: float = 0.0) -> void:
 	tw.tween_property(node, "scale", Vector2.ONE, 0.25).set_delay(delay)
 
 func _shake(px: float) -> void:
+	if not Game.screen_shake:
+		return
 	if _shake_tween and _shake_tween.is_valid():
 		_shake_tween.kill()
 		position = _rest_pos
