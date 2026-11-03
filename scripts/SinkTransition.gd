@@ -137,6 +137,8 @@ func _show_title() -> void:
 	_shake()
 
 func _shake() -> void:
+	if not Game.screen_shake:
+		return
 	var tw := _track(create_tween())
 	for i in 4:
 		var off := Vector2(randf_range(-1.0, 1.0), randf_range(-1.0, 1.0)) * SHAKE_PX

@@ -1,7 +1,7 @@
 extends Control
 class_name StartScreen
 ## Tela de inicio: mar rolando com um navio cruzando ao fundo, logo do
-## RogueShip balancando e o menu. "Jogar" comeca uma run do zero (sinal
+## RogueShip balancando e o menu (com a opcao de tremor de tela). "Jogar" comeca uma run do zero (sinal
 ## `play`; Main chama Game.reset_run()). Se ja venceu algum chefe, oferece
 ## continuar do checkpoint (sinal `resume`; Main chama Game.load_checkpoint()).
 ## Mar e navio ficam dentro de Stage, na mesma escala de pixel da doca, e
@@ -29,6 +29,7 @@ const BOB_TIME := 1.6
 @onready var play_btn: Button = $Menu/Play
 @onready var resume_btn: Button = $Menu/Resume
 @onready var quit_btn: Button = $Menu/Quit
+@onready var shake_toggle: CheckButton = $Menu/Shake
 @onready var record_label: Label = $Menu/Record
 
 var _tweens: Array[Tween] = []
@@ -37,6 +38,7 @@ func _ready() -> void:
 	play_btn.pressed.connect(func(): play.emit())
 	resume_btn.pressed.connect(func(): resume.emit())
 	quit_btn.pressed.connect(func(): get_tree().quit())
+	shake_toggle.toggled.connect(Game.set_screen_shake)
 	# No navegador nao tem janela pra fechar.
 	quit_btn.visible = not OS.has_feature("web")
 	# Pop do logo cresce a partir do centro, qualquer que seja o tamanho da tela.
@@ -46,6 +48,7 @@ func _ready() -> void:
 
 func open() -> void:
 	visible = true
+	shake_toggle.set_pressed_no_signal(Game.screen_shake)
 	resume_btn.visible = Game.has_checkpoint()
 	if resume_btn.visible:
 		resume_btn.text = "Continuar (Ante %d)" % Game.checkpoint["ante"]

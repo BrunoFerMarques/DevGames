@@ -17,6 +17,9 @@ const FLIGHT_TIME := 0.32    # voo do projetil (tiro inteiro fica < 0.5s)
 const TRAIL_EVERY := 0.12    # fracao do voo entre fiapos de rastro
 const ARC_PER_PX := 0.25     # altura do arco por pixel de distancia
 const ARC_MAX := 120.0
+const POP_FONT := 26         # pontos que sobem da casa (pop_text), antes do grow
+const POP_RISE := 48.0
+const POP_TIME := 0.75
 
 ## Origem dos disparos (Main liga). Sem ela o tiro sai de baixo do alvo.
 var fleet_bar: FleetBar = null
@@ -46,6 +49,27 @@ func fire(ship: PlayerShip, target: Rect2) -> void:
 	_spawn_flash(from, (to - from).angle())
 	await _fly(from, to)
 	reticle.queue_free()
+
+## Texto que pula da casa `target` (rect global), sobe e some - pontos do
+## tiro, "MINA!". `grow` aumenta a fonte (ImpactFx cresce com o streak).
+func pop_text(target: Rect2, text: String, color: Color, grow: float = 1.0) -> void:
+	var label := Label.new()
+	label.text = text
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	label.add_theme_color_override("font_color", color)
+	label.add_theme_font_size_override("font_size", int(POP_FONT * grow))
+	label.add_theme_constant_override("outline_size", 8)
+	add_child(label)
+	label.size = label.get_minimum_size()
+	label.pivot_offset = label.size / 2.0
+	var at := _local(target.get_center()) - label.size / 2.0 + Vector2(randf_range(-8.0, 8.0), 0.0)
+	label.position = at
+	label.scale = Vector2.ONE * 0.4
+	var tw := create_tween().set_parallel()
+	tw.tween_property(label, "scale", Vector2.ONE, 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_property(label, "position:y", at.y - POP_RISE, POP_TIME).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tw.tween_property(label, "modulate:a", 0.0, 0.3).set_delay(POP_TIME - 0.3)
+	tw.chain().tween_callback(label.queue_free)
 
 func _fly(from: Vector2, to: Vector2) -> void:
 	var shadow := _new_rect(PROJECTILE_TEX)

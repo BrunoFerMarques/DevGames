@@ -5,7 +5,8 @@ extends Control
 ## pela animacao do navio atracando (DockTransition) e pela carta nautica
 ## (LevelMap) com o caminho de fases. Na derrota passa pelo
 ## naufragio (SinkTransition) antes do GameOver. Toda troca de tela passa
-## pela cortina (ScreenFader) em vez de corte seco.
+## pela cortina (ScreenFader) em vez de corte seco. Durante a rodada,
+## ImpactFx treme a tela e StreakGlow esquenta as bordas com o combo.
 
 const LAST_SHOT_DELAY := 0.6   # explosao/respingo do ultimo tiro duram ~0.45s
 
@@ -21,6 +22,8 @@ const LAST_SHOT_DELAY := 0.6   # explosao/respingo do ultimo tiro duram ~0.45s
 @onready var sink: SinkTransition = $SinkTransition
 @onready var fader: ScreenFader = $ScreenFader
 @onready var start_screen: StartScreen = $StartScreen
+@onready var streak_glow: StreakGlow = $StreakGlow
+@onready var impact: ImpactFx = $ImpactFx
 
 func _ready() -> void:
 	board.round_won.connect(_on_round_won)
@@ -30,6 +33,8 @@ func _ready() -> void:
 	hud.bind(board)
 	shot_fx.fleet_bar = fleet_bar
 	board.shot_fx = shot_fx
+	streak_glow.bind(board)
+	impact.bind(board, shot_fx)
 	shop.closed.connect(_on_shop_closed)
 	level_map.closed.connect(_on_map_closed)
 	level_map.resume_requested.connect(_on_resume_checkpoint)
@@ -174,3 +179,4 @@ func _set_board_visible(v: bool) -> void:
 	board.visible = v
 	fleet_bar.visible = v
 	hud.visible = v
+	streak_glow.visible = v
