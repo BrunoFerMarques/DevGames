@@ -26,6 +26,12 @@ const SINK_BONUS_CHIPS := 50
 const BOSS_ADJUST_COST := 5
 ## Vitoria paga a municao da proxima rodada (tiro custa Shop.SHOT_PRICE).
 const ROUND_BASE_REWARD := 8
+## Bonus por passar da meta: +$1 a cada OVERKILL_STEP (fracao da meta) acima
+## dela, no maximo OVERKILL_REWARD_CAP. Era +$1 a cada 50 pontos absolutos sem
+## teto - como a meta cresce 1.6x por ante e os precos da loja sao fixos, no
+## fim da run uma rodada pagava centenas de dolares.
+const OVERKILL_STEP := 0.25
+const OVERKILL_REWARD_CAP := 4
 const SONAR_SPAN := 3   # casas que o sonar base revela na linha clicada
 const CellScene: PackedScene = preload("res://scenes/Cell.tscn")
 const COORD_COLOR := Color(0.184, 0.749, 0.69, 0.85)   # Sonar, levemente apagado
@@ -564,8 +570,7 @@ func _check_end() -> void:
 
 func _run_round_end_effects() -> void:
 	var ctx: Dictionary = {"score": score, "target": target, "game": Game}
-	var reward := ROUND_BASE_REWARD + int(floor(float(score - target) / 50.0))
-	Game.add_money(maxi(reward, 0))
+	Game.add_money(ROUND_BASE_REWARD + _overkill_reward())
 	if Game.nation:
 		Game.nation.on_round_end(ctx)
 	for adm in Game.admirals:
@@ -573,6 +578,11 @@ func _run_round_end_effects() -> void:
 	# Por ultimo: estrelas, bonus da rota e checkpoint (se era o chefe) ja
 	# com todo o dinheiro da vitoria no bolso.
 	Game.record_win(score, target)
+
+## Proporcional a meta (vale igual no ante 1 e no 8), com teto.
+func _overkill_reward() -> int:
+	var excess := float(score - target) / float(maxi(target, 1))
+	return clampi(int(floor(excess / OVERKILL_STEP)), 0, OVERKILL_REWARD_CAP)
 
 ## Atalho de teste (Main, so em build de debug): bate a meta e encerra a
 ## rodada como vitoria.
