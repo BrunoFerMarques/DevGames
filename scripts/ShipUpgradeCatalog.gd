@@ -17,5 +17,26 @@ static func all() -> Array[ShipUpgradeDef]:
 	demolisher.kind = ShipUpgradeDef.Kind.MULT_PER_SINK
 	demolisher.magnitude = 0.5
 
-	var out: Array[ShipUpgradeDef] = [gunner, demolisher]
+	# --- So pro navio-sonar (mesmo slot unico: comprar outra substitui) ---
+	var deep := ShipUpgradeDef.new()
+	deep.id = &"sonar_deep"
+	deep.display_name = "Sonar Profundo"
+	deep.description = "O sonar enxerga submarinos."
+	deep.kind = ShipUpgradeDef.Kind.SONAR_DEEP
+
+	var wide := ShipUpgradeDef.new()
+	wide.id = &"sonar_wide"
+	wide.display_name = "Varredura Larga"
+	wide.description = "O sonar revela +2 casas de largura (por nivel)."
+	wide.kind = ShipUpgradeDef.Kind.SONAR_WIDE
+	wide.magnitude = 2.0
+
+	var battery := ShipUpgradeDef.new()
+	battery.id = &"sonar_charge"
+	battery.display_name = "Bateria Extra"
+	battery.description = "+1 carga de sonar por rodada (por nivel)."
+	battery.kind = ShipUpgradeDef.Kind.SONAR_CHARGE
+	battery.magnitude = 1.0
+
+	var out: Array[ShipUpgradeDef] = [gunner, demolisher, deep, wide, battery]
 	return out

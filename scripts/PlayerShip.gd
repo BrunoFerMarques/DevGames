@@ -6,13 +6,15 @@ class_name PlayerShip
 enum Kind { SHOT, SONAR }
 ## Municao que o navio dispara (troca comprando Armamento na loja).
 ## PIERCING ignora blindagem; SALVO acerta a casa + as 4 vizinhas;
-## TORPEDO corre a linha pra direita ate bater em algo.
-enum Shot { NORMAL, PIERCING, SALVO, TORPEDO }
+## TORPEDO corre a linha pra direita ate bater em algo; TRACKER mostra o casco
+## (direcao do navio) no acerto - os outros so marcam fogo, sem direcao.
+enum Shot { NORMAL, PIERCING, SALVO, TORPEDO, TRACKER }
 const SHOT_TAGS := {
 	Shot.NORMAL: "",
 	Shot.PIERCING: "PERF",
 	Shot.SALVO: "SALVA",
 	Shot.TORPEDO: "TORP",
+	Shot.TRACKER: "RAST",
 }
 
 @export var id: StringName
@@ -28,6 +30,9 @@ var upgrade_level: int = 0
 var shot_type: Shot = Shot.NORMAL
 
 var charges: int = 0
+## Carga com que o navio entrou na rodada, ja com boss/nacao/almirantes.
+## Teto da recarga de sonar ao afundar navio (Board._refund_sonar).
+var round_cap: int = 0
 ## Navio de tiro comeca a rodada vazio: so dispara o que foi comprado na loja
 ## (ate max_charges, o tamanho do pente). Game.clear_bought_shots zera no fim
 ## da rodada. Sonar continua recarregando sozinho.
@@ -47,7 +52,15 @@ func refill() -> void:
 
 ## Carga com que o navio entra na rodada.
 func round_capacity() -> int:
-	return bought_shots if kind == Kind.SHOT else max_charges
+	if kind == Kind.SHOT:
+		return bought_shots
+	return max_charges + sonar_upgrade_level(ShipUpgradeDef.Kind.SONAR_CHARGE)
+
+## Nivel da melhoria de sonar `k` neste navio (0 se nao tem).
+func sonar_upgrade_level(k: ShipUpgradeDef.Kind) -> int:
+	if upgrade != null and upgrade.kind == k:
+		return upgrade_level
+	return 0
 
 func can_load_shot() -> bool:
 	return kind == Kind.SHOT and bought_shots < max_charges

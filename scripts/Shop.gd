@@ -110,16 +110,22 @@ func _buy_admiral(def: Effect) -> void:
 	_admiral_offers.erase(def)
 	Game.admirals_changed.emit()
 
-## Abre um menu pra escolher em qual navio de tiro aplicar a compra.
-func _pick_shot_ship(on_pick: Callable, label_for: Callable) -> void:
-	var menu := PopupMenu.new()
-	add_child(menu)
+## Abre um menu pra escolher em qual navio (de tiro ou sonar, conforme
+## `kind`) aplicar a compra. Com um navio so, aplica direto.
+func _pick_ship(kind: PlayerShip.Kind, on_pick: Callable, label_for: Callable) -> void:
 	var targets: Array[PlayerShip] = []
 	for ship in Game.player_ships:
-		if ship.kind != PlayerShip.Kind.SHOT:
-			continue
-		menu.add_item(label_for.call(ship), targets.size())
-		targets.append(ship)
+		if ship.kind == kind:
+			targets.append(ship)
+	if targets.is_empty():
+		return
+	if targets.size() == 1:
+		on_pick.call(targets[0])
+		return
+	var menu := PopupMenu.new()
+	add_child(menu)
+	for i in targets.size():
+		menu.add_item(label_for.call(targets[i]), i)
 	menu.id_pressed.connect(func(id: int) -> void: on_pick.call(targets[id]))
 	menu.popup_hide.connect(menu.queue_free)
 	menu.popup(Rect2i(get_global_mouse_position(), Vector2i(260, 0)))
@@ -127,7 +133,8 @@ func _pick_shot_ship(on_pick: Callable, label_for: Callable) -> void:
 func _buy_upgrade(def: ShipUpgradeDef) -> void:
 	if Game.money < UPGRADE_PRICE:
 		return
-	_pick_shot_ship(func(ship: PlayerShip) -> void: _apply_upgrade(def, ship),
+	var kind := PlayerShip.Kind.SONAR if def.for_sonar() else PlayerShip.Kind.SHOT
+	_pick_ship(kind, func(ship: PlayerShip) -> void: _apply_upgrade(def, ship),
 		func(ship: PlayerShip) -> String:
 			if ship.upgrade:
 				return "%s  [%s x%d]" % [ship.display_name, ship.upgrade.display_name, ship.upgrade_level]
@@ -147,7 +154,7 @@ func _apply_upgrade(def: ShipUpgradeDef, ship: PlayerShip) -> void:
 func _buy_shot_type(def: ShotTypeDef) -> void:
 	if Game.money < def.price:
 		return
-	_pick_shot_ship(func(ship: PlayerShip) -> void: _apply_shot_type(def, ship),
+	_pick_ship(PlayerShip.Kind.SHOT, func(ship: PlayerShip) -> void: _apply_shot_type(def, ship),
 		func(ship: PlayerShip) -> String:
 			var tag := ship.shot_tag()
 			return "%s  [%s]" % [ship.display_name, tag] if tag != "" else ship.display_name)
@@ -174,7 +181,8 @@ func _refresh() -> void:
 
 	_clear(upgrade_items)
 	for up in _upgrade_offers:
-		upgrade_items.add_child(_make_item_card(up.display_name, up.description, UPGRADE_PRICE,
+		var title := ("SONAR · " + up.display_name) if up.for_sonar() else up.display_name
+		upgrade_items.add_child(_make_item_card(title, up.description, UPGRADE_PRICE,
 			func(): _buy_upgrade(up)))
 	for st in _shot_offers:
 		upgrade_items.add_child(_make_item_card(st.display_name, st.description, st.price,
@@ -198,7 +206,8 @@ func _refresh_shots() -> void:
 			shot_rows.add_child(_make_shot_row(ship))
 		else:
 			var lbl := Label.new()
-			lbl.text = "%s: %d usos (grátis)" % [ship.display_name, ship.max_charges]
+			var up := "  [%s x%d]" % [ship.upgrade.display_name, ship.upgrade_level] if ship.upgrade else ""
+			lbl.text = "%s: %d usos (grátis)%s" % [ship.display_name, ship.round_capacity(), up]
 			lbl.add_theme_color_override("font_color", Color("#2fbfb0"))
 			shot_rows.add_child(lbl)
 	shots_total.text = "Total: %d tiros" % total

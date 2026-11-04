@@ -26,7 +26,14 @@ const SINK_BONUS_CHIPS := 50
 const BOSS_ADJUST_COST := 5
 ## Vitoria paga a municao da proxima rodada (tiro custa Shop.SHOT_PRICE).
 const ROUND_BASE_REWARD := 8
+## Bonus por passar da meta: +$1 a cada OVERKILL_STEP (fracao da meta) acima
+## dela, no maximo OVERKILL_REWARD_CAP. Era +$1 a cada 50 pontos absolutos sem
+## teto - como a meta cresce 1.6x por ante e os precos da loja sao fixos, no
+## fim da run uma rodada pagava centenas de dolares.
+const OVERKILL_STEP := 0.25
+const OVERKILL_REWARD_CAP := 4
 const SONAR_SPAN := 3   # casas que o sonar base revela na linha clicada
+const SONAR_WIDE_STEP := 2   # casas de largura por nivel de Varredura Larga
 const CellScene: PackedScene = preload("res://scenes/Cell.tscn")
 const COORD_COLOR := Color(0.184, 0.749, 0.69, 0.85)   # Sonar, levemente apagado
 const SUB_TINT := Color(0.7, 0.92, 0.85)   # segmento de submarino quando aparece
@@ -323,16 +330,15 @@ func _on_cell_shot(coord: Vector2i) -> void:
 				_busy = false
 			_resolve_shot(coord, firing_ship)
 		PlayerShip.Kind.SONAR:
-			_resolve_sonar(coord)
+			_resolve_sonar(coord, firing_ship)
 
 ## Um tiro pode atingir varias casas (salva, torpedo). Cada casa vira um
 ## "golpe"; a pontuacao junta tudo num ctx so, entao almirantes/boss/nacao
 ## continuam vendo um tiro por clique (is_hit/sank/chips/mult).
 func _resolve_shot(coord: Vector2i, firing_ship: PlayerShip) -> void:
-	var piercing := firing_ship.shot_type == PlayerShip.Shot.PIERCING
 	var strikes: Array[Dictionary] = []
 	for p in _shot_targets(coord, firing_ship.shot_type):
-		strikes.append(_strike(p, piercing))
+		strikes.append(_strike(p, firing_ship.shot_type))
 	_score_strikes(coord, strikes, firing_ship)
 
 ## Casas atingidas pelo tiro, a partir da casa clicada.
@@ -359,7 +365,7 @@ func _shot_targets(coord: Vector2i, shot: PlayerShip.Shot) -> Array[Vector2i]:
 	return out
 
 ## Aplica o tiro numa casa e diz o que aconteceu. Muda o estado visual na hora.
-func _strike(p: Vector2i, piercing: bool) -> Dictionary:
+func _strike(p: Vector2i, shot: PlayerShip.Shot) -> Dictionary:
 	var cell: Cell = cells[p]
 	if cell.has_mine:
 		cell.has_mine = false
@@ -372,9 +378,13 @@ func _strike(p: Vector2i, piercing: bool) -> Dictionary:
 		return {"coord": p, "water": true}
 	# Daqui pra baixo achou navio: a diagonal e' agua garantida.
 	_mark_clear_around([p], DIAGONALS)
-	if cell.armor > 0 and not piercing:
+	# Rastreador marca o navio: dali em diante todo acerto nele mostra o casco.
+	if shot == PlayerShip.Shot.TRACKER:
+		ship["tracked"] = true
+	if cell.armor > 0 and shot != PlayerShip.Shot.PIERCING:
 		cell.armor -= 1
 		cell.set_state(Cell.State.ARMORED)
+		_reveal_heading(ship)
 		return {"coord": p, "armor": true}
 	cell.armor = 0
 	ship["hits"] += 1
@@ -387,8 +397,31 @@ func _strike(p: Vector2i, piercing: bool) -> Dictionary:
 			Vector2i.UP, Vector2i.DOWN, Vector2i.LEFT, Vector2i.RIGHT])
 	else:
 		cell.set_state(Cell.State.HIT)
+		_reveal_heading(ship)
 	return {"coord": p, "hit": true, "sank": sank, "ship": ship}
 
+## Navio marcado pelo Rastreador: cada casa ja achada (acerto/blindagem)
+## mostra o casco girado e, pela regra de nao encostar, marca agua dos dois
+## lados; se a casa e' proa/popa, marca tambem a agua logo depois da ponta.
+func _reveal_heading(ship: Dictionary) -> void:
+	if not ship.get("tracked", false):
+		return
+	var body: Array = ship["cells"]
+	var horiz: bool = body.size() < 2 or body[0].y == body[1].y
+	var sides: Array = [Vector2i.UP, Vector2i.DOWN] if horiz else [Vector2i.LEFT, Vector2i.RIGHT]
+	var back: Vector2i = Vector2i.LEFT if horiz else Vector2i.UP
+	for i in body.size():
+		var q: Vector2i = body[i]
+		var c: Cell = cells[q]
+		if not c.state in [Cell.State.HIT, Cell.State.ARMORED]:
+			continue
+		c.show_hull()
+		var around: Array = sides.duplicate()
+		if i == 0:
+			around.append(back)
+		if i == body.size() - 1:
+			around.append(-back)
+		_mark_clear_around([q], around)
 ## Marca agua deduzida nas casas `offsets` em volta de cada coord.
 func _mark_clear_around(coords: Array, offsets: Array) -> void:
 	for c: Vector2i in coords:
@@ -466,6 +499,7 @@ func _score_strikes(coord: Vector2i, strikes: Array[Dictionary], firing_ship: Pl
 		loot += (ship["def"] as EnemyShipDef).loot_money
 	if loot > 0:
 		Game.add_money(loot)
+	var sonar_refund := _refund_sonar(sunk_ships.size())
 	if not sunk_ships.is_empty():
 		enemy_fleet_changed.emit()
 
@@ -480,17 +514,37 @@ func _score_strikes(coord: Vector2i, strikes: Array[Dictionary], firing_ship: Pl
 		"armor": not is_hit and armor_blocks > 0 and mines == 0,
 		"mine": mines > 0,
 		"hits": hits,
+		"sonar_refund": sonar_refund,
 	})
 	_refresh_line_counts()
 	score_changed.emit(score, target)
 	combo_changed.emit(streak, _combo_mult())
 	_check_end()
 
-func _resolve_sonar(coord: Vector2i) -> void:
+## Varredura Larga soma largura; Sonar Profundo enxerga submarino.
+func _resolve_sonar(coord: Vector2i, ship: PlayerShip) -> void:
+	var extra := ship.sonar_upgrade_level(ShipUpgradeDef.Kind.SONAR_WIDE) * SONAR_WIDE_STEP
+	var deep := ship.sonar_upgrade_level(ShipUpgradeDef.Kind.SONAR_DEEP) > 0
 	if _sonar_is_box():
-		use_sonar_box(coord)
+		use_sonar_box(coord, 3 + extra, deep)
 	else:
-		use_sonar_segment(coord)
+		use_sonar_segment(coord, SONAR_SPAN + extra, deep)
+
+## Cada navio afundado devolve 1 carga ao navio-sonar, ate a carga com que ele
+## entrou na rodada (sonar gasto volta; nevoa do boss continua zerando).
+## Fim de run tem mais navios, entao o sonar recarrega mais justo quando a
+## grade cresce. Retorna quantas cargas voltaram.
+func _refund_sonar(n: int) -> int:
+	var given := 0
+	for ship in Game.player_ships:
+		if ship.kind != PlayerShip.Kind.SONAR:
+			continue
+		while given < n and ship.charges < ship.round_cap:
+			ship.charges += 1
+			given += 1
+	if given > 0:
+		_recalc_pools()
+	return given
 
 func _sonar_is_box() -> bool:
 	if Game.nation and Game.nation.sonar_is_box():
@@ -508,24 +562,26 @@ func _keeps_combo_on_water(water_n: int) -> bool:
 			return true
 	return false
 
-## Sonar base (descarte padrao): SONAR_SPAN casas na linha clicada, centradas
-## no clique; perto da borda desliza pra dentro e continua revelando SONAR_SPAN.
+## Sonar base (descarte padrao): `width` casas na linha clicada, centradas
+## no clique; perto da borda desliza pra dentro e continua revelando `width`.
 ## Era a linha inteira - forte demais (metade do tabuleiro em 3 cargas virava
 ## acerto garantido alimentando combo). Nao pontua. Reveal puro: quem controla
 ## carga/ativacao e' _resolve_sonar / _on_cell_shot.
-func use_sonar_segment(center: Vector2i) -> void:
-	var span := mini(SONAR_SPAN, gsize)
+func use_sonar_segment(center: Vector2i, width: int = SONAR_SPAN, deep: bool = false) -> void:
+	var span := mini(width, gsize)
 	var start := clampi(center.x - int(span / 2.0), 0, gsize - span)
 	for x in range(start, start + span):
-		cells[Vector2i(x, center.y)].reveal_sonar()
+		cells[Vector2i(x, center.y)].reveal_sonar(deep)
 
-## Sonar 3x3 (usado por nacoes tipo Japao).
-func use_sonar_box(center: Vector2i) -> void:
+## Sonar em area: 3 de altura, `width` de largura (3x3 base, usado por
+## nacoes tipo Japao e pelo Capitao da Mare).
+func use_sonar_box(center: Vector2i, width: int = 3, deep: bool = false) -> void:
+	var half := int(width / 2.0)
 	for dy in range(-1, 2):
-		for dx in range(-1, 2):
+		for dx in range(-half, half + 1):
 			var p: Vector2i = center + Vector2i(dx, dy)
 			if cells.has(p):
-				cells[p].reveal_sonar()
+				cells[p].reveal_sonar(deep)
 
 ## Consome 1 carga do navio selecionado e recalcula os pools derivados.
 func _consume_selected_charge() -> void:
@@ -564,8 +620,7 @@ func _check_end() -> void:
 
 func _run_round_end_effects() -> void:
 	var ctx: Dictionary = {"score": score, "target": target, "game": Game}
-	var reward := ROUND_BASE_REWARD + int(floor(float(score - target) / 50.0))
-	Game.add_money(maxi(reward, 0))
+	Game.add_money(ROUND_BASE_REWARD + _overkill_reward())
 	if Game.nation:
 		Game.nation.on_round_end(ctx)
 	for adm in Game.admirals:
@@ -573,6 +628,11 @@ func _run_round_end_effects() -> void:
 	# Por ultimo: estrelas, bonus da rota e checkpoint (se era o chefe) ja
 	# com todo o dinheiro da vitoria no bolso.
 	Game.record_win(score, target)
+
+## Proporcional a meta (vale igual no ante 1 e no 8), com teto.
+func _overkill_reward() -> int:
+	var excess := float(score - target) / float(maxi(target, 1))
+	return clampi(int(floor(excess / OVERKILL_STEP)), 0, OVERKILL_REWARD_CAP)
 
 ## Atalho de teste (Main, so em build de debug): bate a meta e encerra a
 ## rodada como vitoria.
@@ -589,7 +649,7 @@ func debug_win() -> void:
 ## Atalho de teste: marca no sonar onde estao os navios, sem gastar carga.
 func debug_reveal() -> void:
 	for cell: Cell in cells.values():
-		cell.reveal_sonar()
+		cell.reveal_sonar(true)
 
 func has_commodore_nevoa() -> bool:
 	for adm in Game.admirals:

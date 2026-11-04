@@ -13,5 +13,8 @@ static func all() -> Array[ShotTypeDef]:
 		ShotTypeDef.new(&"torpedo", "Torpedo",
 			"Corre a linha para a direita, revelando água, até bater em algo.",
 			PlayerShip.Shot.TORPEDO, 6),
+		ShotTypeDef.new(&"tracker", "Rastreador",
+			"No acerto mostra o casco: direção do navio e água dos lados.",
+			PlayerShip.Shot.TRACKER, 5),
 	]
 	return out

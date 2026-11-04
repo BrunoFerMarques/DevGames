@@ -20,6 +20,9 @@ var has_mine: bool = false
 var sonar_proof: bool = false
 ## Cor do segmento quando aparece (submarino fica esverdeado).
 var ship_tint: Color = Color.WHITE
+## Acerto comum so mostra fogo (sem direcao). O casco girado aparece no
+## afundado ou quando o tiro Rastreador revelou a direcao (show_hull).
+var hull_shown: bool = false
 
 var _ship_tex: Texture2D = null
 var _ship_rot_deg: float = 0.0
@@ -131,6 +134,7 @@ func setup(c: Vector2i, ship: bool) -> void:
 	has_mine = false
 	sonar_proof = false
 	ship_tint = Color.WHITE
+	hull_shown = false
 	state = State.HIDDEN
 	_ship_tex = null
 	_ship_rot_deg = 0.0
@@ -144,6 +148,11 @@ func setup(c: Vector2i, ship: bool) -> void:
 func set_ship_sprite(tex: Texture2D, rot_deg: float) -> void:
 	_ship_tex = tex
 	_ship_rot_deg = rot_deg
+	_refresh()
+
+## Rastreador: casco fica visivel (ja no acerto atual ou no proximo).
+func show_hull() -> void:
+	hull_shown = true
 	_refresh()
 
 func is_shootable() -> bool:
@@ -174,11 +183,12 @@ func mark_clear() -> void:
 	state = State.CLEAR
 	_refresh()
 
-## Sonar so marca celulas ainda ocultas. Submarino passa batido (le como vazio).
-func reveal_sonar() -> void:
+## Sonar so marca celulas ainda ocultas. Submarino passa batido (le como
+## vazio), a nao ser com Sonar Profundo (`deep`).
+func reveal_sonar(deep: bool = false) -> void:
 	if state != State.HIDDEN:
 		return
-	if has_ship and not sonar_proof:
+	if has_ship and (deep or not sonar_proof):
 		state = State.SONAR_SHIP
 	elif has_mine:
 		state = State.SONAR_MINE
@@ -201,7 +211,7 @@ func _refresh() -> void:
 	add_theme_stylebox_override("focus", StyleBoxEmpty.new())
 
 	var hit_or_sunk := state == State.HIT or state == State.SUNK
-	var show_ship := hit_or_sunk and _ship_tex != null
+	var show_ship := _ship_tex != null and (state == State.SUNK or (state == State.HIT and hull_shown))
 	_sprite.visible = show_ship
 	if show_ship:
 		_sprite.texture = _ship_tex
@@ -224,8 +234,8 @@ func _refresh() -> void:
 	_mark.visible = mark != null and not _splash.visible
 
 	_set_looping(_sonar_blip, state == State.SONAR_SHIP)
-	# Fallback: acerto sem segmento de navio vira marca de queimado.
-	_set_looping(_burnt, hit_or_sunk and _ship_tex == null)
+	# Acerto sem casco a mostra (tiro comum, ou sem sprite) vira marca de queimado.
+	_set_looping(_burnt, hit_or_sunk and not show_ship)
 
 ## Liga/desliga uma animacao em loop sem reiniciar a que ja esta tocando.
 func _set_looping(player: SpriteSheetPlayer, on: bool) -> void:
