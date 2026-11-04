@@ -152,6 +152,7 @@ func refill_player_ships() -> void:
 			for adm in admirals:
 				n = adm.modify_sonar(n)
 		ship.charges = maxi(0, n)
+		ship.round_cap = ship.charges
 
 ## Tiro comprado vale so pra rodada seguinte a compra.
 func clear_bought_shots() -> void:

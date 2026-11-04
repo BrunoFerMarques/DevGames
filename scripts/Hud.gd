@@ -231,6 +231,8 @@ func _on_shot(d: Dictionary) -> void:
 		var text := "ACERTO" if d.get("hits", 1) <= 1 else "ACERTO x%d" % d["hits"]
 		if d["sank"]:
 			text = "AFUNDOU! +$%d" % d["loot"] if d.get("loot", 0) > 0 else "AFUNDOU!"
+			if d.get("sonar_refund", 0) > 0:
+				text += "  +%d SONAR" % d["sonar_refund"]
 		_flash(shot_name, text, GOLD if d["sank"] else CREAM)
 	else:
 		_flash(shot_name, "AGUA", WATER_BLUE)

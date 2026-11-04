@@ -74,6 +74,6 @@ layout_mode = 2
 size_flags_horizontal = 4
 theme_override_colors/font_color = Color(0.6, 0.63, 0.68, 0.9)
 theme_override_font_sizes/font_size = 16
-text = "Navios não se encostam, nem na diagonal · números nas bordas: casas de navio que faltam (submarino não conta)"
+text = "Navios não se encostam, nem na diagonal · bordas: casas de navio que faltam (submarino não conta) · afundar = +1 sonar"
 horizontal_alignment = 1
 autowrap_mode = 3
