@@ -171,7 +171,9 @@ func _apply_shot_type(def: ShotTypeDef, ship: PlayerShip) -> void:
 func _refresh() -> void:
 	money_label.text = "$%d" % Game.money
 	var info := "Ante %d · Rodada %d/3 · Meta %d" % [Game.ante, Game.round_in_ante, Game.target_score]
-	if Game.boss_modifier:
+	if Game.tutorial:
+		info = "TREINO · Meta %d" % Game.target_score
+	elif Game.boss_modifier:
 		info += " · DESAFIO: %s" % Game.boss_modifier.display_name
 	elif Game.stop_kind() != Game.Stop.NORMAL:
 		info += " · %s" % Game.STOP_NAMES[Game.stop_kind()]

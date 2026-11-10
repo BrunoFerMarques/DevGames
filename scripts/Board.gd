@@ -97,7 +97,12 @@ func start_round() -> void:
 	_round_id += 1
 	selected_ship = null
 	_build_grid()
-	_place_fleet(Game.enemy_fleet)
+	if Game.fixed_layout.is_empty():
+		_place_fleet(Game.enemy_fleet)
+	else:
+		enemy_ships.clear()
+		for entry in Game.fixed_layout:
+			_put_ship(entry["def"], entry["body"], entry["horiz"])
 	_place_mines(Game.mine_count)
 	_refresh_line_counts()
 	enemy_fleet_changed.emit()

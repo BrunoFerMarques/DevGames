@@ -1,4 +1,4 @@
-[gd_scene load_steps=16 format=3]
+[gd_scene load_steps=17 format=3]
 
 [ext_resource type="Script" path="res://scripts/Main.gd" id="1"]
 [ext_resource type="PackedScene" path="res://scenes/Board.tscn" id="2"]
@@ -15,6 +15,7 @@
 [ext_resource type="PackedScene" path="res://scenes/StartScreen.tscn" id="13"]
 [ext_resource type="PackedScene" path="res://scenes/StreakGlow.tscn" id="14"]
 [ext_resource type="Script" path="res://scripts/ImpactFx.gd" id="15"]
+[ext_resource type="Script" path="res://scripts/Tutorial.gd" id="16"]
 
 [node name="Main" type="Control"]
 layout_mode = 3
@@ -73,6 +74,17 @@ layout_mode = 1
 [node name="StartScreen" parent="." instance=ExtResource("13")]
 visible = false
 layout_mode = 1
+
+[node name="Tutorial" type="Control" parent="."]
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("16")
 
 [node name="ScreenFader" type="ColorRect" parent="."]
 modulate = Color(1, 1, 1, 0)

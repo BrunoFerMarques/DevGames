@@ -47,6 +47,10 @@ const TREASURE_TARGET_MULT := 1.1
 const STAR_RATIOS: Array[float] = [1.5, 2.0]
 const STAR_BONUS := 1            ## $ por estrela alem da 1a
 const SAVE_PATH := "user://progresso.cfg"
+## Treino: 4 tiros no Encouracado afundam a frota fixa inteira (Tutorial.gd).
+const TUTORIAL_MONEY := 4
+const TUTORIAL_GRID := 5
+const TUTORIAL_TARGET := 200
 
 var nation = null            # Effect ou null
 var admirals: Array = []     # Array de Effect (coringas comprados na loja)
@@ -70,7 +74,13 @@ var last_stars: int = 0      # estrelas da ultima vitoria (doca mostra)
 var _specials: Dictionary = {}   # ante -> [Stop, Stop] especial das rodadas 1 e 2
 var _bosses: Dictionary = {}     # ante -> Effect (sorteado cedo pro mapa mostrar)
 
+# --- Treino ---
+var tutorial: bool = false
+## Posicao fixa da frota inimiga ({def, body, horiz}); vazio = sorteia (Board).
+var fixed_layout: Array = []
+
 # --- Salvo em disco ---
+var tutorial_done: bool = false
 var best_index: int = 0      # parada mais longe ja alcancada (recorde)
 var checkpoint: Dictionary = {}  # estado logo apos o ultimo chefe vencido
 var screen_shake: bool = true    # opcao de acessibilidade (tela de inicio)
@@ -92,6 +102,8 @@ func reset_run() -> void:
 	route_log.clear()
 	_specials.clear()
 	_bosses.clear()
+	tutorial = false
+	fixed_layout.clear()
 	if player_ships.is_empty():
 		_build_starting_fleet()
 	else:
@@ -288,6 +300,36 @@ func record_win(score: int, target: int) -> int:
 		_save_checkpoint()
 	return bonus
 
+# --- Treino --------------------------------------------------------------------
+
+## Rodada de treino: grade 5x5, Destroyer em B2-C2 e Cargueiro em D4-D5
+## (posicoes fixas pro roteiro do Tutorial bater) e dinheiro so pros 4 tiros.
+func setup_tutorial() -> void:
+	reset_run()
+	tutorial = true
+	money = TUTORIAL_MONEY
+	grid_size = TUTORIAL_GRID
+	target_score = TUTORIAL_TARGET
+	_base_target_score = TUTORIAL_TARGET
+	boss_modifier = null
+	mine_count = 0
+	var destroyer := EnemyShipDef.warship(2)
+	var cargo := EnemyShipDef.cargo(2)
+	enemy_fleet = [destroyer, cargo]
+	var destroyer_body: Array[Vector2i] = [Vector2i(1, 1), Vector2i(2, 1)]
+	var cargo_body: Array[Vector2i] = [Vector2i(3, 3), Vector2i(3, 4)]
+	fixed_layout = [
+		{"def": destroyer, "body": destroyer_body, "horiz": true},
+		{"def": cargo, "body": cargo_body, "horiz": false},
+	]
+	money_changed.emit(money)
+
+func finish_tutorial() -> void:
+	tutorial = false
+	fixed_layout.clear()
+	tutorial_done = true
+	_save_progress()
+
 # --- Checkpoint / save ---------------------------------------------------------
 
 func has_checkpoint() -> bool:
@@ -344,6 +386,7 @@ func _save_progress() -> void:
 	cfg.set_value("progresso", "best_index", best_index)
 	cfg.set_value("progresso", "checkpoint", checkpoint)
 	cfg.set_value("opcoes", "tremor", screen_shake)
+	cfg.set_value("opcoes", "treino", tutorial_done)
 	cfg.save(SAVE_PATH)
 
 func _load_progress() -> void:
@@ -353,6 +396,7 @@ func _load_progress() -> void:
 	best_index = cfg.get_value("progresso", "best_index", 0)
 	checkpoint = cfg.get_value("progresso", "checkpoint", {})
 	screen_shake = cfg.get_value("opcoes", "tremor", true)
+	tutorial_done = cfg.get_value("opcoes", "treino", false)
 
 ## Grade menor nos antes iniciais, cresce ate o maximo.
 func _grid_for_ante(a: int) -> int:

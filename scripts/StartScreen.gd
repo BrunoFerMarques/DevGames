@@ -9,6 +9,8 @@ class_name StartScreen
 
 signal play
 signal resume
+## "Treino": rodada guiada (Tutorial); Main chama Game.setup_tutorial().
+signal tutorial
 
 const STAGE_SIZE := Vector2(640, 360)
 const SEA_TILE := 256.0       # lado do water_texture; rolar 1 tile fecha o loop
@@ -27,6 +29,7 @@ const BOB_TIME := 1.6
 @onready var menu: VBoxContainer = $Menu
 @onready var logo: TextureRect = $Menu/LogoBox/Logo
 @onready var play_btn: Button = $Menu/Play
+@onready var tutorial_btn: Button = $Menu/Tutorial
 @onready var resume_btn: Button = $Menu/Resume
 @onready var quit_btn: Button = $Menu/Quit
 @onready var shake_toggle: CheckButton = $Menu/Shake
@@ -37,6 +40,7 @@ var _tweens: Array[Tween] = []
 func _ready() -> void:
 	play_btn.pressed.connect(func(): play.emit())
 	resume_btn.pressed.connect(func(): resume.emit())
+	tutorial_btn.pressed.connect(func(): tutorial.emit())
 	quit_btn.pressed.connect(func(): get_tree().quit())
 	shake_toggle.toggled.connect(Game.set_screen_shake)
 	# No navegador nao tem janela pra fechar.
@@ -49,6 +53,7 @@ func _ready() -> void:
 func open() -> void:
 	visible = true
 	shake_toggle.set_pressed_no_signal(Game.screen_shake)
+	tutorial_btn.text = "Treino" if Game.tutorial_done else "Treino (recomendado)"
 	resume_btn.visible = Game.has_checkpoint()
 	if resume_btn.visible:
 		resume_btn.text = "Continuar (Ante %d)" % Game.checkpoint["ante"]
@@ -74,8 +79,8 @@ func open() -> void:
 	var tw := _track(create_tween().set_parallel())
 	tw.tween_property(menu, "modulate:a", 1.0, 0.3)
 	tw.tween_property(logo, "scale", Vector2.ONE, 0.45).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	# Enter/Espaco ja jogam sem precisar do mouse.
-	play_btn.grab_focus()
+	# Enter/Espaco ja jogam sem precisar do mouse (1a vez: ja vao pro treino).
+	(play_btn if Game.tutorial_done else tutorial_btn).grab_focus()
 
 ## Esconde e para as animacoes (Main chama com a cortina fechada).
 func close() -> void:
