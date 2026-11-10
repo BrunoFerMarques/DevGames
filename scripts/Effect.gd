@@ -40,3 +40,11 @@ func keeps_combo_on_water(_water_n: int) -> bool:
 ## True se o sonar deste efeito revela area 3x3 em vez de 3 casas na linha.
 func sonar_is_box() -> bool:
 	return false
+
+## Ajusta quantas vagas a doca da frota tem (Game.dock_capacity).
+func modify_dock(n: int) -> int:
+	return n
+
+## Ajusta o pente (tiros compraveis por rodada) de um navio de tiro.
+func modify_magazine(_ship: PlayerShip, n: int) -> int:
+	return n

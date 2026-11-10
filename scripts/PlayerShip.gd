@@ -28,13 +28,16 @@ const SHOT_TAGS := {
 var upgrade: ShipUpgradeDef = null
 var upgrade_level: int = 0
 var shot_type: Shot = Shot.NORMAL
+## Classe do Estaleiro: vagas na doca e vantagem (Perk) do navio.
+var ship_class: ShipClassDef = null
+var _water_shield_used: bool = false
 
 var charges: int = 0
 ## Carga com que o navio entrou na rodada, ja com boss/nacao/almirantes.
 ## Teto da recarga de sonar ao afundar navio (Board._refund_sonar).
 var round_cap: int = 0
 ## Navio de tiro comeca a rodada vazio: so dispara o que foi comprado na loja
-## (ate max_charges, o tamanho do pente). Game.clear_bought_shots zera no fim
+## (ate Game.magazine(ship), o pente). Game.clear_bought_shots zera no fim
 ## da rodada. Sonar continua recarregando sozinho.
 var bought_shots: int = 0
 
@@ -49,6 +52,7 @@ func _init(p_id: StringName = &"", p_name: String = "", p_kind: Kind = Kind.SHOT
 
 func refill() -> void:
 	charges = round_capacity()
+	_water_shield_used = false
 
 ## Carga com que o navio entra na rodada.
 func round_capacity() -> int:
@@ -62,8 +66,23 @@ func sonar_upgrade_level(k: ShipUpgradeDef.Kind) -> int:
 		return upgrade_level
 	return 0
 
-func can_load_shot() -> bool:
-	return kind == Kind.SHOT and bought_shots < max_charges
+func tonnage() -> int:
+	return ship_class.tonnage if ship_class else 0
+
+func perk() -> ShipClassDef.Perk:
+	return ship_class.perk if ship_class else ShipClassDef.Perk.NONE
+
+## Destroyer: segura o combo no 1o tiro na agua da rodada. Gasta o escudo.
+func use_water_shield() -> bool:
+	if perk() != ShipClassDef.Perk.WATER_SHIELD or _water_shield_used:
+		return false
+	_water_shield_used = true
+	return true
+
+## Vantagem da classe que mexe na conta do tiro (Cruzador).
+func apply_perk(ctx: Dictionary) -> void:
+	if perk() == ShipClassDef.Perk.SINK_MULT and ctx.get("sank", false):
+		ctx["mult"] = float(ctx["mult"]) + 1.0
 
 func has_charge() -> bool:
 	return charges > 0

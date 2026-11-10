@@ -229,13 +229,15 @@ func _on_shot(d: Dictionary) -> void:
 		_flash(shot_name, "BLINDADO!", STEEL)
 	elif d["hit"]:
 		var text := "ACERTO" if d.get("hits", 1) <= 1 else "ACERTO x%d" % d["hits"]
+		if d.get("loot", 0) > 0 and not d["sank"]:
+			text += " +$%d" % d["loot"]
 		if d["sank"]:
 			text = "AFUNDOU! +$%d" % d["loot"] if d.get("loot", 0) > 0 else "AFUNDOU!"
 			if d.get("sonar_refund", 0) > 0:
 				text += "  +%d SONAR" % d["sonar_refund"]
 		_flash(shot_name, text, GOLD if d["sank"] else CREAM)
 	else:
-		_flash(shot_name, "AGUA", WATER_BLUE)
+		_flash(shot_name, "ÁGUA · combo salvo" if d.get("shielded", false) else "AGUA", WATER_BLUE)
 	chips_value.text = str(d["chips"])
 	mult_value.text = "x" + _fmt_mult(d["mult"])
 	_pop(chips_box)

@@ -11,11 +11,16 @@ func bind(board: Board) -> void:
 	_board = board
 	_board.fleet_changed.connect(_refresh)
 	_board.ship_selected.connect(func(_s): _refresh())
+	Game.ships_changed.connect(func():
+		_build_cards()
+		_refresh()
+	)
 	_build_cards()
 	_refresh()
 
 func _build_cards() -> void:
 	for c in get_children():
+		remove_child(c)
 		c.queue_free()
 	_cards.clear()
 	for ship in Game.player_ships:
@@ -29,6 +34,8 @@ func _make_card(ship: PlayerShip) -> Dictionary:
 	# 64 do sprite + 24 da linha de carga (fonte 20px).
 	btn.custom_minimum_size = Vector2(64 * maxi(ship.segments.size(), 1), 88)
 	btn.tooltip_text = ship.display_name
+	if ship.ship_class:
+		btn.tooltip_text += "\n" + ship.ship_class.perk_text
 	btn.pressed.connect(func(): _board.select_ship(ship))
 
 	var box := VBoxContainer.new()
@@ -47,6 +54,9 @@ func _make_card(ship: PlayerShip) -> Dictionary:
 		tr.custom_minimum_size = Vector2(64, 64)
 		tr.stretch_mode = TextureRect.STRETCH_KEEP
 		tr.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		# Classes com o mesmo casco (Encouracado/Cruzador) se distinguem pela cor.
+		if ship.ship_class:
+			tr.modulate = ship.ship_class.tint
 		sprite_row.add_child(tr)
 
 	var label := Label.new()

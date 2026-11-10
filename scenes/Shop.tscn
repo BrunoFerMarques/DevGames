@@ -69,11 +69,20 @@ theme_override_constants/separation = 8
 [node name="Header" type="HBoxContainer" parent="Upgrades/VBox"]
 layout_mode = 2
 
-[node name="Title" type="Label" parent="Upgrades/VBox/Header"]
+[node name="TabUpgrades" type="Button" parent="Upgrades/VBox/Header"]
+layout_mode = 2
+toggle_mode = true
+button_pressed = true
+text = "MELHORIAS"
+
+[node name="TabShipyard" type="Button" parent="Upgrades/VBox/Header"]
+layout_mode = 2
+toggle_mode = true
+text = "ESTALEIRO"
+
+[node name="Spacer" type="Control" parent="Upgrades/VBox/Header"]
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_colors/font_color = Color(0.952941, 0.768627, 0.294118, 1)
-text = "MELHORIAS E ARMAMENTO"
 
 [node name="Reroll" type="Button" parent="Upgrades/VBox/Header"]
 layout_mode = 2
@@ -130,10 +139,18 @@ grow_vertical = 2
 layout_mode = 2
 theme_override_constants/separation = 10
 
-[node name="Title" type="Label" parent="Shots/VBox"]
+[node name="Header" type="HBoxContainer" parent="Shots/VBox"]
 layout_mode = 2
+
+[node name="Title" type="Label" parent="Shots/VBox/Header"]
+layout_mode = 2
+size_flags_horizontal = 3
 theme_override_colors/font_color = Color(0.952941, 0.768627, 0.294118, 1)
-text = "TIROS DA RODADA"
+text = "SUA FROTA"
+
+[node name="Dock" type="Label" parent="Shots/VBox/Header"]
+layout_mode = 2
+text = "Doca 0/10"
 
 [node name="Info" type="Label" parent="Shots/VBox"]
 layout_mode = 2
@@ -141,8 +158,14 @@ theme_override_colors/font_color = Color(0.6, 0.63, 0.68, 1)
 text = "..."
 autowrap_mode = 3
 
-[node name="Rows" type="VBoxContainer" parent="Shots/VBox"]
+[node name="Scroll" type="ScrollContainer" parent="Shots/VBox"]
 layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="Rows" type="VBoxContainer" parent="Shots/VBox/Scroll"]
+layout_mode = 2
+size_flags_horizontal = 3
 theme_override_constants/separation = 6
 
 [node name="Total" type="Label" parent="Shots/VBox"]
@@ -152,10 +175,6 @@ text = "Total: 0 tiros"
 [node name="LoadAll" type="Button" parent="Shots/VBox"]
 layout_mode = 2
 text = "Carregar tudo"
-
-[node name="Spacer" type="Control" parent="Shots/VBox"]
-layout_mode = 2
-size_flags_vertical = 3
 
 [node name="Warning" type="Label" parent="Shots/VBox"]
 layout_mode = 2
