@@ -73,10 +73,23 @@ func _set_tab(shipyard: bool) -> void:
 	_refresh()
 
 func _roll_offers() -> void:
-	_admiral_offers = _pick_random(AdmiralCatalog.all(), OFFER_COUNT)
+	_admiral_offers = _pick_random(_admiral_pool(), OFFER_COUNT)
 	_upgrade_offers = _pick_random(ShipUpgradeCatalog.all(), OFFER_COUNT)
 	_shot_offers = _pick_random(ShotTypeCatalog.all(), 1)
 	_ship_offers = _pick_random(ShipClassCatalog.all(), SHIP_OFFER_COUNT)
+
+## Almirantes que o jogador ainda nao tem: a loja nao vende repetido (o
+## efeito so somaria duas vezes). Vendeu, volta a aparecer no proximo sorteio.
+## Catalogo tem 12 e a frota no maximo MAX_ADMIRALS, entao sempre sobra oferta.
+func _admiral_pool() -> Array[Effect]:
+	var out: Array[Effect] = []
+	for adm: Effect in AdmiralCatalog.all():
+		if not _owns_admiral(adm.id):
+			out.append(adm)
+	return out
+
+func _owns_admiral(id: StringName) -> bool:
+	return Game.admirals.any(func(a: Effect) -> bool: return a.id == id)
 
 func _pick_random(pool: Array, n: int) -> Array:
 	var copy := pool.duplicate()
@@ -119,7 +132,7 @@ func _unload_shot(ship: PlayerShip) -> void:
 # --- Almirantes / melhorias / armamento --------------------------------------
 
 func _buy_admiral(def: Effect) -> void:
-	if Game.admirals.size() >= Game.MAX_ADMIRALS:
+	if Game.admirals.size() >= Game.MAX_ADMIRALS or _owns_admiral(def.id):
 		return
 	if not Game.spend_money(ADMIRAL_PRICE):
 		return
