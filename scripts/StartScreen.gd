@@ -2,8 +2,9 @@ extends Control
 class_name StartScreen
 ## Tela de inicio: mar rolando com um navio cruzando ao fundo, logo do
 ## RogueShip balancando e o menu (com a opcao de tremor de tela). "Jogar" comeca uma run do zero (sinal
-## `play`; Main chama Game.reset_run()). Se ja venceu algum chefe, oferece
-## continuar do checkpoint (sinal `resume`; Main chama Game.load_checkpoint()).
+## `play`; Main chama Game.start_new_run(), que apaga o checkpoint antigo). Se
+## ja venceu algum chefe, oferece continuar do checkpoint (sinal `resume`;
+## Main chama Game.load_checkpoint()).
 ## Mar e navio ficam dentro de Stage, na mesma escala de pixel da doca, e
 ## Stage e' escalado pra cobrir a tela.
 

@@ -55,11 +55,12 @@ func _ready() -> void:
 	admiral_bar.visible = false
 	start_screen.open()
 
-## "Jogar" na tela de inicio: run do zero e carta nautica na parada 1.
+## "Jogar" na tela de inicio: run do zero (apaga o checkpoint antigo) e carta
+## nautica na parada 1.
 func _on_start_play() -> void:
 	fader.swap(func():
 		start_screen.close()
-		Game.reset_run()
+		Game.start_new_run()
 		Game.configure_round()
 		_show_map(false)
 	)
@@ -101,13 +102,14 @@ func _show_game_over() -> void:
 	game_over.open(board.score, board.target)
 
 ## So aqui a run reseta de verdade (dinheiro, almirantes, ante voltam ao
-## inicio) - ate clicar "Novo Jogo" a tela de fim de jogo fica congelada
-## mostrando o resultado da tentativa que acabou de perder.
+## inicio e o checkpoint antigo e' apagado) - ate clicar "Novo Jogo" a tela
+## de fim de jogo fica congelada mostrando o resultado da tentativa que
+## acabou de perder (e o "Voltar ao checkpoint" ainda funciona).
 func _on_game_over_restart() -> void:
 	fader.swap(func():
 		game_over.visible = false
 		sink.stop()
-		Game.reset_run()
+		Game.start_new_run()
 		Game.configure_round()
 		_show_map(false)
 	)

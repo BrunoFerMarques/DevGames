@@ -394,6 +394,19 @@ func finish_tutorial() -> void:
 func has_checkpoint() -> bool:
 	return not checkpoint.is_empty()
 
+## Run do zero (Jogar / Novo Jogo): apaga o checkpoint da run anterior, senao
+## o "Continuar" do menu e o atalho do mapa ainda levariam de volta pra ela.
+## reset_run sozinho nao apaga porque load_checkpoint e o treino tambem usam.
+func start_new_run() -> void:
+	clear_checkpoint()
+	reset_run()
+
+func clear_checkpoint() -> void:
+	if checkpoint.is_empty():
+		return
+	checkpoint = {}
+	_save_progress()
+
 ## Snapshot logo depois de vencer o chefe: a run volta pro inicio do ante
 ## seguinte com o dinheiro, almirantes e navios desse momento.
 func _save_checkpoint() -> void:

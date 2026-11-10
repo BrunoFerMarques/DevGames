@@ -3,8 +3,9 @@ class_name GameOver
 ## Tela de fim de run: mostra quando os tiros acabam sem bater a meta.
 ## Reiniciar aqui zera a run inteira (dinheiro, almirantes, ante) - quem faz
 ## o reset de verdade e' quem escuta o sinal `restart` (Main chama
-## Game.reset_run()). Se ja venceu algum chefe, oferece voltar ao checkpoint
-## (sinal `resume`; Main chama Game.load_checkpoint()).
+## Game.start_new_run(), que tambem apaga o checkpoint). Se ja venceu algum
+## chefe, oferece voltar ao checkpoint (sinal `resume`; Main chama
+## Game.load_checkpoint()).
 
 signal restart
 signal resume
