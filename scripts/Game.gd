@@ -27,6 +27,14 @@ const SUB_CHANCE := 0.4          ## chance de 1 navio pequeno (<=3) ser submarin
 ## 1a) e cada tiro e' comprado. Dinheiro inicial paga a carga da 1a rodada.
 const START_MONEY := 12
 const ROUNDS_PER_ANTE := 3
+## Meta da 1a rodada de cada ante; a 2a e' x1.5 e a do chefe x2
+## (ROUND_TARGET_STEP). Era 300 x 1.6^(ante-1): simulando runs com compra na
+## loja, o poder do jogador cresce ~1.7-1.8x por ante do 2 ao 5 e a pontuacao
+## fechava o chefe com ~2x a meta. A tabela segura a folga do chefe perto de
+## 1.3x. Depois do ultimo ante, cresce ANTE_TARGET_GROWTH por ante.
+const ANTE_BASE_TARGETS: Array[int] = [350, 520, 1100, 1800, 2900, 4200, 6000, 8500]
+const ANTE_TARGET_GROWTH := 1.45
+const ROUND_TARGET_STEP := 0.5
 ## Vagas da doca: soma das vagas (tonnage) dos navios da frota nao passa
 ## disso. Almirantes de estaleiro aumentam (Effect.modify_dock).
 const DOCK_BASE := 10
@@ -71,10 +79,10 @@ var boss_modifier = null     # Effect ou null - so ativo na 3a rodada de cada an
 
 # --- Config recalculada a cada rodada ---
 var grid_size: int = 6
-var target_score: int = 300
+var target_score: int = 350
 var enemy_fleet: Array[EnemyShipDef] = []
 var mine_count: int = 0      # minas soltas no tabuleiro (custam 1 tiro e o combo)
-var _base_target_score: int = 300   # meta antes do desafio de boss
+var _base_target_score: int = 350   # meta antes do desafio de boss
 
 # --- Caminho de fases ---
 var stop_lane: int = -1      # rota da rodada atual: 0 segura, 1 especial, -1 sem escolha
@@ -242,9 +250,7 @@ func sell_ship(ship: PlayerShip) -> bool:
 ## ante, ver boss_for) ajusta a meta e/ou a frota do jogador (aplicado em
 ## refill_player_ships). Pode ser chamado de novo ao trocar de rota.
 func configure_round() -> void:
-	var ante_mult := pow(1.6, ante - 1)
-	var round_mult := 1.0 + 0.5 * (round_in_ante - 1)
-	_base_target_score = int(300.0 * ante_mult * round_mult)
+	_base_target_score = base_target_for(ante, round_in_ante)
 	grid_size = _grid_for_ante(ante)
 	enemy_fleet = _fleet_for_ante(ante)
 	mine_count = _mines_for_ante(ante)
@@ -261,6 +267,14 @@ func configure_round() -> void:
 	if stage_index() > best_index:
 		best_index = stage_index()
 		_save_progress()
+
+## Meta da rodada `round_n` do ante `a`, antes de rota e chefe.
+func base_target_for(a: int, round_n: int) -> int:
+	var last := ANTE_BASE_TARGETS.size()
+	var base := float(ANTE_BASE_TARGETS[mini(a, last) - 1])
+	if a > last:
+		base *= pow(ANTE_TARGET_GROWTH, a - last)
+	return int(base * (1.0 + ROUND_TARGET_STEP * (round_n - 1)))
 
 func _apply_boss_target() -> void:
 	target_score = boss_modifier.modify_target(_base_target_score) if boss_modifier else _base_target_score
