@@ -28,7 +28,7 @@ const BOSS_ADJUST_COST := 5
 const ROUND_BASE_REWARD := 8
 ## Bonus por passar da meta: +$1 a cada OVERKILL_STEP (fracao da meta) acima
 ## dela, no maximo OVERKILL_REWARD_CAP. Era +$1 a cada 50 pontos absolutos sem
-## teto - como a meta cresce 1.6x por ante e os precos da loja sao fixos, no
+## teto - como a meta cresce ~1.5-1.8x por ante e os precos da loja sao fixos, no
 ## fim da run uma rodada pagava centenas de dolares.
 const OVERKILL_STEP := 0.25
 const OVERKILL_REWARD_CAP := 4
