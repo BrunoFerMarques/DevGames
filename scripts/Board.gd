@@ -24,7 +24,7 @@ signal round_lost
 const BASE_HIT_CHIPS := 10
 const SINK_BONUS_CHIPS := 50
 const BOSS_ADJUST_COST := 5
-## Vitoria paga a municao da proxima rodada (tiro custa Shop.SHOT_PRICE).
+## Vitoria paga a municao da proxima rodada (tiro custa Game.SHOT_PRICE).
 const ROUND_BASE_REWARD := 8
 ## Bonus por passar da meta: +$1 a cada OVERKILL_STEP (fracao da meta) acima
 ## dela, no maximo OVERKILL_REWARD_CAP. Era +$1 a cada 50 pontos absolutos sem
@@ -344,7 +344,20 @@ func _resolve_shot(coord: Vector2i, firing_ship: PlayerShip) -> void:
 	var strikes: Array[Dictionary] = []
 	for p in _shot_targets(coord, firing_ship.shot_type):
 		strikes.append(_strike(p, firing_ship.shot_type))
+	if firing_ship.perk() == ShipClassDef.Perk.SCOUT:
+		_scout_around(strikes)
 	_score_strikes(coord, strikes, firing_ship)
+
+## Corveta: acerto que nao afundou revela no sonar as 4 vizinhas (por onde o
+## resto do navio pode seguir). Afundado ja marca a borda como agua.
+func _scout_around(strikes: Array[Dictionary]) -> void:
+	for s in strikes:
+		if not s.get("hit", false) or s["sank"]:
+			continue
+		for d in [Vector2i.UP, Vector2i.DOWN, Vector2i.LEFT, Vector2i.RIGHT]:
+			var q: Vector2i = s["coord"] + d
+			if cells.has(q):
+				cells[q].reveal_sonar()
 
 ## Casas atingidas pelo tiro, a partir da casa clicada.
 ## SALVO: a casa + as 4 vizinhas (so as que ainda da pra atirar).
@@ -466,12 +479,16 @@ func _score_strikes(coord: Vector2i, strikes: Array[Dictionary], firing_ship: Pl
 			selected_ship = null
 		_recalc_pools()
 		enemy_fleet_changed.emit()
+	var shielded := false
 	if is_hit:
 		streak += 1
 	elif not no_score:
 		_water_count += 1
 		if not _keeps_combo_on_water(_water_count):
-			streak = 0
+			# Destroyer segura o combo na 1a agua da rodada (so gasta se tinha combo).
+			shielded = streak > 0 and firing_ship.use_water_shield()
+			if not shielded:
+				streak = 0
 
 	var base_chips := hits * BASE_HIT_CHIPS
 	for ship in sunk_ships:
@@ -491,6 +508,7 @@ func _score_strikes(coord: Vector2i, strikes: Array[Dictionary], firing_ship: Pl
 		if Game.boss_modifier:
 			Game.boss_modifier.on_shot(ctx)
 		firing_ship.apply_shot_upgrade(ctx)
+		firing_ship.apply_perk(ctx)
 		if Game.nation:
 			Game.nation.on_shot(ctx)
 		for adm in Game.admirals:
@@ -502,6 +520,9 @@ func _score_strikes(coord: Vector2i, strikes: Array[Dictionary], firing_ship: Pl
 	var loot := 0
 	for ship in sunk_ships:
 		loot += (ship["def"] as EnemyShipDef).loot_money
+	# Corsario: +$1 por casa acertada, soma no saque do tiro.
+	if firing_ship.perk() == ShipClassDef.Perk.PRIVATEER:
+		loot += hits
 	if loot > 0:
 		Game.add_money(loot)
 	var sonar_refund := _refund_sonar(sunk_ships.size())
@@ -520,6 +541,7 @@ func _score_strikes(coord: Vector2i, strikes: Array[Dictionary], firing_ship: Pl
 		"mine": mines > 0,
 		"hits": hits,
 		"sonar_refund": sonar_refund,
+		"shielded": shielded,
 	})
 	_refresh_line_counts()
 	score_changed.emit(score, target)

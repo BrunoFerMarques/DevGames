@@ -14,4 +14,6 @@ static func all() -> Array[Effect]:
 	out.append(AdmiralTide.new())
 	out.append(AdmiralStorm.new())
 	out.append(AdmiralFogCommodore.new())
+	out.append(AdmiralDockMaster.new())
+	out.append(AdmiralFlotilla.new())
 	return out

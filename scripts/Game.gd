@@ -11,6 +11,8 @@ extends Node
 signal money_changed(total: int)
 signal admirals_changed
 signal run_started
+## Navio comprado/vendido no Estaleiro (FleetBar remonta os cards).
+signal ships_changed
 
 const GRID_SIZE := 10        ## tamanho maximo (layout/camera). Atual = grid_size.
 const MAX_ADMIRALS := 5      ## teto de coringas, igual ao limite de jokers do Balatro.
@@ -25,6 +27,13 @@ const SUB_CHANCE := 0.4          ## chance de 1 navio pequeno (<=3) ser submarin
 ## 1a) e cada tiro e' comprado. Dinheiro inicial paga a carga da 1a rodada.
 const START_MONEY := 12
 const ROUNDS_PER_ANTE := 3
+## Vagas da doca: soma das vagas (tonnage) dos navios da frota nao passa
+## disso. Almirantes de estaleiro aumentam (Effect.modify_dock).
+const DOCK_BASE := 10
+## Cada tiro comprado na loja (vale so pra proxima rodada).
+const SHOT_PRICE := 1
+## Frota inicial: 10 vagas, 9 tiros de pente, 2 vantagens (Cruzador, Destroyer).
+const STARTING_FLEET: Array[StringName] = [&"battleship", &"cruiser", &"destroyer", &"sonar_ship"]
 
 ## Parada do mapa. As rodadas 1 e 2 de cada ante tem bifurcacao: rota segura
 ## (NORMAL) ou a especial sorteada pro ante (DANGER ou TREASURE).
@@ -104,14 +113,8 @@ func reset_run() -> void:
 	_bosses.clear()
 	tutorial = false
 	fixed_layout.clear()
-	if player_ships.is_empty():
-		_build_starting_fleet()
-	else:
-		for ship in player_ships:
-			ship.upgrade = null
-			ship.upgrade_level = 0
-			ship.shot_type = PlayerShip.Shot.NORMAL
-		clear_bought_shots()
+	# Frota volta a inicial: navios comprados/vendidos e melhorias somem.
+	_build_starting_fleet()
 	if nation:
 		nation.on_run_start(self)
 	# Barra de Almirantes e HUD de dinheiro so redesenham ouvindo esses sinais.
@@ -171,26 +174,68 @@ func clear_bought_shots() -> void:
 	for ship in player_ships:
 		ship.bought_shots = 0
 
-## Frota fixa do MVP (sem loja ainda): 1 grande (4 cargas), 2 pequenos
-## (3 cargas cada) e 1 sonar (3 cargas). Pequenos subiram de 2 pra 3 quando o
-## sonar encolheu de linha inteira pra 3 casas: poder sai da informacao e vai
-## pro tiro.
 func _build_starting_fleet() -> void:
-	var bow: Texture2D = load("res://sprites/frota/bow.png")
-	var mid: Texture2D = load("res://sprites/frota/mid.png")
-	var stern: Texture2D = load("res://sprites/frota/stern.png")
-	var sonar_tex: Texture2D = load("res://sprites/frota/sonar.png")
-	player_ships = [
-		PlayerShip.new(&"battleship", "Encouracado", PlayerShip.Kind.SHOT,
-			[bow, mid, stern], 4),
-		PlayerShip.new(&"destroyer_a", "Destroyer A", PlayerShip.Kind.SHOT,
-			[bow, stern], 3),
-		PlayerShip.new(&"destroyer_b", "Destroyer B", PlayerShip.Kind.SHOT,
-			[bow, stern], 3),
-		# sonar.png tem as duas pontas cortadas - precisa de proa e popa em volta.
-		PlayerShip.new(&"sonar_ship", "Navio-sonar", PlayerShip.Kind.SONAR,
-			[bow, sonar_tex, stern], 3),
-	]
+	player_ships.clear()
+	for class_id in STARTING_FLEET:
+		player_ships.append(ShipClassCatalog.by_id(class_id).build())
+	ships_changed.emit()
+
+# --- Doca / Estaleiro ------------------------------------------------------------
+
+func dock_capacity() -> int:
+	var n := DOCK_BASE
+	for adm in admirals:
+		n = adm.modify_dock(n)
+	return n
+
+func dock_used() -> int:
+	var n := 0
+	for ship in player_ships:
+		n += ship.tonnage()
+	return n
+
+## Cabe na doca (vender almirante de estaleiro pode deixar a frota acima do
+## limite: ela fica, mas so da pra comprar quando voltar a caber).
+func has_dock_room(def: ShipClassDef) -> bool:
+	return dock_used() + def.tonnage <= dock_capacity()
+
+func buy_ship(def: ShipClassDef) -> bool:
+	if not has_dock_room(def) or not spend_money(def.price):
+		return false
+	player_ships.append(def.build())
+	ships_changed.emit()
+	return true
+
+## Sempre sobra pelo menos 1 navio de tiro (sem ele a rodada nao joga).
+func can_sell_ship(ship: PlayerShip) -> bool:
+	if ship.kind != PlayerShip.Kind.SHOT:
+		return true
+	return player_ships.filter(func(s: PlayerShip) -> bool: return s.kind == PlayerShip.Kind.SHOT).size() > 1
+
+## Metade do preco + os tiros ja comprados pra ele nesta loja.
+func ship_sell_value(ship: PlayerShip) -> int:
+	return ship.ship_class.sell_price() + ship.bought_shots * SHOT_PRICE
+
+## Pente efetivo de um navio de tiro: o da classe ajustado pelos almirantes
+## (ex.: Flotilha). Fica aqui e nao no PlayerShip porque precisa dos
+## almirantes, e o PlayerShip nao pode depender do Game (Game depende dele).
+func magazine(ship: PlayerShip) -> int:
+	var n := ship.max_charges
+	for adm in admirals:
+		n = adm.modify_magazine(ship, n)
+	return n
+
+func can_load_shot(ship: PlayerShip) -> bool:
+	return ship.kind == PlayerShip.Kind.SHOT and ship.bought_shots < magazine(ship)
+
+func sell_ship(ship: PlayerShip) -> bool:
+	if not can_sell_ship(ship):
+		return false
+	var value := ship_sell_value(ship)
+	player_ships.erase(ship)
+	add_money(value)
+	ships_changed.emit()
+	return true
 
 ## Recalcula meta e frota inimiga com base no ante/rodada/rota atuais.
 ## Rodada 3 de cada ante e' rodada-boss: o desafio (sorteado no inicio do
@@ -341,7 +386,7 @@ func _save_checkpoint() -> void:
 	var ships: Array = []
 	for ship in player_ships:
 		ships.append({
-			"id": ship.id,
+			"class": ship.ship_class.id,
 			"upgrade": ship.upgrade.id if ship.upgrade else &"",
 			"level": ship.upgrade_level,
 			"shot": ship.shot_type,
@@ -364,15 +409,22 @@ func load_checkpoint() -> void:
 		for adm in AdmiralCatalog.all():
 			if adm.id == adm_id:
 				admirals.append(adm)
-	for data in checkpoint["ships"]:
-		for ship in player_ships:
-			if ship.id != data["id"]:
+	# Checkpoint de antes do Estaleiro nao guarda a classe: fica a frota inicial.
+	var saved: Array = checkpoint["ships"]
+	if saved.all(func(d: Dictionary) -> bool: return d.has("class")):
+		player_ships.clear()
+		for data in saved:
+			var def := ShipClassCatalog.by_id(data["class"])
+			if def == null:
 				continue
+			var ship := def.build()
 			ship.shot_type = data["shot"]
 			ship.upgrade_level = data["level"]
 			for up in ShipUpgradeCatalog.all():
 				if up.id == data["upgrade"]:
 					ship.upgrade = up
+			player_ships.append(ship)
+		ships_changed.emit()
 	admirals_changed.emit()
 	money_changed.emit(money)
 
