@@ -56,6 +56,12 @@ func _make_card(ship: PlayerShip) -> Dictionary:
 
 	return {"button": btn, "label": label}
 
+## Retangulo global da carta do navio (o treino destaca ela).
+func card_rect(ship: PlayerShip) -> Rect2:
+	if not _cards.has(ship):
+		return Rect2()
+	return (_cards[ship]["button"] as Button).get_global_rect()
+
 ## Ponto global de onde sai o disparo do navio: meio do card, perto do topo.
 func muzzle_point(ship: PlayerShip) -> Vector2:
 	if not _cards.has(ship):

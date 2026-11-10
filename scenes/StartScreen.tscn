@@ -267,6 +267,18 @@ theme_override_styles/pressed = SubResource("StyleBoxFlat_play_pressed")
 theme_override_styles/normal = SubResource("StyleBoxFlat_play")
 text = "Jogar"
 
+[node name="Tutorial" type="Button" parent="Menu"]
+custom_minimum_size = Vector2(280, 48)
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_colors/font_color = Color(0.952941, 0.768627, 0.294118, 1)
+theme_override_font_sizes/font_size = 22
+theme_override_styles/focus = SubResource("StyleBoxFlat_focus")
+theme_override_styles/hover = SubResource("StyleBoxFlat_navy_hover")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_navy_pressed")
+theme_override_styles/normal = SubResource("StyleBoxFlat_navy")
+text = "Treino"
+
 [node name="Resume" type="Button" parent="Menu"]
 visible = false
 custom_minimum_size = Vector2(280, 48)

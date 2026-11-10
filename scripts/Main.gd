@@ -24,6 +24,7 @@ const LAST_SHOT_DELAY := 0.6   # explosao/respingo do ultimo tiro duram ~0.45s
 @onready var start_screen: StartScreen = $StartScreen
 @onready var streak_glow: StreakGlow = $StreakGlow
 @onready var impact: ImpactFx = $ImpactFx
+@onready var tutorial: Tutorial = $Tutorial
 
 func _ready() -> void:
 	board.round_won.connect(_on_round_won)
@@ -45,6 +46,9 @@ func _ready() -> void:
 	game_over.resume.connect(_on_resume_checkpoint)
 	start_screen.play.connect(_on_start_play)
 	start_screen.resume.connect(_on_resume_checkpoint)
+	start_screen.tutorial.connect(_on_start_tutorial)
+	tutorial.bind(shop, board, fleet_bar, hud)
+	tutorial.finished.connect(_on_tutorial_finished)
 	# Abre na tela de inicio; "Jogar" leva pra carta nautica (parada 1) e de
 	# la pra loja comprar tiros.
 	_set_board_visible(false)
@@ -58,6 +62,29 @@ func _on_start_play() -> void:
 		Game.reset_run()
 		Game.configure_round()
 		_show_map(false)
+	)
+
+## Treino: tabuleiro fixo e guiado (Tutorial). Pula o mapa: vai direto pra
+## loja comprar os tiros.
+func _on_start_tutorial() -> void:
+	fader.swap(func():
+		start_screen.close()
+		Game.setup_tutorial()
+		_show_shop()
+		tutorial.begin()
+	)
+
+## Fim do treino (concluido ou pulado): campanha nova ou volta pro menu.
+func _on_tutorial_finished(play: bool) -> void:
+	Game.finish_tutorial()
+	if play:
+		_on_start_play()
+		return
+	fader.swap(func():
+		_set_board_visible(false)
+		shop.visible = false
+		admiral_bar.visible = false
+		start_screen.open()
 	)
 
 func _on_round_lost() -> void:
@@ -129,6 +156,10 @@ func _on_sell_admiral(adm: Effect) -> void:
 func _on_round_won() -> void:
 	# Deixa a animacao do ultimo tiro (explosao/respingo) terminar antes da doca.
 	await get_tree().create_timer(LAST_SHOT_DELAY).timeout
+	# Treino nao tem doca/mapa: o proprio Tutorial mostra o fechamento.
+	if Game.tutorial:
+		tutorial.notify_won()
+		return
 	fader.swap(func():
 		_set_board_visible(false)
 		admiral_bar.visible = false
