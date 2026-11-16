@@ -102,6 +102,7 @@ func _on_reroll() -> void:
 		return
 	_reroll_cost += 1
 	_roll_offers()
+	Sfx.play(&"reroll")
 	_refresh()
 
 # --- Tiros -------------------------------------------------------------------
@@ -110,14 +111,20 @@ func _load_shot(ship: PlayerShip) -> void:
 	if not Game.can_load_shot(ship) or not Game.spend_money(Game.SHOT_PRICE):
 		return
 	ship.bought_shots += 1
+	Sfx.play(&"load")
 	_refresh()
 
 ## Enche os navios de tiro em ordem (o da frente primeiro) ate o pente ou o
 ## dinheiro acabar.
 func _load_all() -> void:
+	var loaded := 0
 	for ship in Game.player_ships:
 		while Game.can_load_shot(ship) and Game.spend_money(Game.SHOT_PRICE):
 			ship.bought_shots += 1
+			loaded += 1
+	# Um "clac" por tiro, encadeados (no maximo 6, pra nao virar metralhadora).
+	for i in mini(loaded, 6):
+		Sfx.play_later(&"load", i * 0.06)
 	_refresh()
 
 ## Devolve um tiro comprado nesta visita (tudo que esta carregado foi
@@ -138,6 +145,7 @@ func _buy_admiral(def: Effect) -> void:
 		return
 	Game.admirals.append(def)
 	_admiral_offers.erase(def)
+	Sfx.play(&"buy")
 	Game.admirals_changed.emit()
 
 ## Abre um menu pra escolher em qual navio (de tiro ou sonar, conforme
@@ -179,6 +187,7 @@ func _apply_upgrade(def: ShipUpgradeDef, ship: PlayerShip) -> void:
 		ship.upgrade = def
 		ship.upgrade_level = 1
 	_upgrade_offers.erase(def)
+	Sfx.play(&"buy")
 	_refresh()
 
 func _buy_shot_type(def: ShotTypeDef) -> void:
@@ -194,6 +203,7 @@ func _apply_shot_type(def: ShotTypeDef, ship: PlayerShip) -> void:
 		return
 	ship.shot_type = def.shot
 	_shot_offers.erase(def)
+	Sfx.play(&"buy")
 	_refresh()
 
 # --- Estaleiro (navios) --------------------------------------------------------
@@ -201,6 +211,7 @@ func _apply_shot_type(def: ShotTypeDef, ship: PlayerShip) -> void:
 func _buy_ship(def: ShipClassDef) -> void:
 	if Game.buy_ship(def):
 		_ship_offers.erase(def)
+		Sfx.play(&"buy")
 		_refresh()
 
 ## Venda e' definitiva: confirma antes (devolve metade do preco + os tiros
@@ -213,6 +224,7 @@ func _confirm_sell(ship: PlayerShip) -> void:
 	menu.id_pressed.connect(func(id: int) -> void:
 		if id == 0:
 			Game.sell_ship(ship)
+			Sfx.play(&"sell")
 	)
 	menu.popup_hide.connect(menu.queue_free)
 	menu.popup(Rect2i(get_global_mouse_position(), Vector2i(260, 0)))

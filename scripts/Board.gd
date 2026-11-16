@@ -552,6 +552,7 @@ func _score_strikes(coord: Vector2i, strikes: Array[Dictionary], firing_ship: Pl
 func _resolve_sonar(coord: Vector2i, ship: PlayerShip) -> void:
 	var extra := ship.sonar_upgrade_level(ShipUpgradeDef.Kind.SONAR_WIDE) * SONAR_WIDE_STEP
 	var deep := ship.sonar_upgrade_level(ShipUpgradeDef.Kind.SONAR_DEEP) > 0
+	Sfx.play(&"sonar")
 	if _sonar_is_box():
 		use_sonar_box(coord, 3 + extra, deep)
 	else:

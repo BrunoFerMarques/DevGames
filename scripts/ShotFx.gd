@@ -41,12 +41,14 @@ func fire(ship: PlayerShip, target: Rect2) -> void:
 	reticle.position = _local(target.position)
 	reticle.scale = Vector2.ONE * 1.8
 	reticle.modulate.a = 0.0
+	Sfx.play(&"lock")
 	var lock := create_tween().set_parallel().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 	lock.tween_property(reticle, "scale", Vector2.ONE, LOCK_TIME)
 	lock.tween_property(reticle, "modulate:a", 1.0, LOCK_TIME)
 	await lock.finished
 
 	_spawn_flash(from, (to - from).angle())
+	Sfx.play(&"cannon")
 	await _fly(from, to)
 	reticle.queue_free()
 

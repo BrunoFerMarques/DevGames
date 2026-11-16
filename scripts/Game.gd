@@ -13,6 +13,8 @@ signal admirals_changed
 signal run_started
 ## Navio comprado/vendido no Estaleiro (FleetBar remonta os cards).
 signal ships_changed
+## Musica/efeitos ligados ou desligados nas opcoes (Sfx atualiza os buses).
+signal audio_changed
 
 const GRID_SIZE := 10        ## tamanho maximo (layout/camera). Atual = grid_size.
 const MAX_ADMIRALS := 5      ## teto de coringas, igual ao limite de jokers do Balatro.
@@ -101,6 +103,8 @@ var tutorial_done: bool = false
 var best_index: int = 0      # parada mais longe ja alcancada (recorde)
 var checkpoint: Dictionary = {}  # estado logo apos o ultimo chefe vencido
 var screen_shake: bool = true    # opcao de acessibilidade (tela de inicio)
+var music_on: bool = true
+var sfx_on: bool = true
 
 func _ready() -> void:
 	randomize()
@@ -460,12 +464,25 @@ func set_screen_shake(on: bool) -> void:
 	screen_shake = on
 	_save_progress()
 
+## Liga/desliga musica e efeitos sonoros (o Sfx escuta audio_changed) e salva.
+func set_music_on(on: bool) -> void:
+	music_on = on
+	audio_changed.emit()
+	_save_progress()
+
+func set_sfx_on(on: bool) -> void:
+	sfx_on = on
+	audio_changed.emit()
+	_save_progress()
+
 func _save_progress() -> void:
 	var cfg := ConfigFile.new()
 	cfg.set_value("progresso", "best_index", best_index)
 	cfg.set_value("progresso", "checkpoint", checkpoint)
 	cfg.set_value("opcoes", "tremor", screen_shake)
 	cfg.set_value("opcoes", "treino", tutorial_done)
+	cfg.set_value("opcoes", "musica", music_on)
+	cfg.set_value("opcoes", "efeitos", sfx_on)
 	cfg.save(SAVE_PATH)
 
 func _load_progress() -> void:
@@ -476,6 +493,8 @@ func _load_progress() -> void:
 	checkpoint = cfg.get_value("progresso", "checkpoint", {})
 	screen_shake = cfg.get_value("opcoes", "tremor", true)
 	tutorial_done = cfg.get_value("opcoes", "treino", false)
+	music_on = cfg.get_value("opcoes", "musica", true)
+	sfx_on = cfg.get_value("opcoes", "efeitos", true)
 
 ## Grade menor nos antes iniciais, cresce ate o maximo.
 func _grid_for_ante(a: int) -> int:
