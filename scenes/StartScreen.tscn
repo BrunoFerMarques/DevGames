@@ -303,13 +303,31 @@ theme_override_styles/pressed = SubResource("StyleBoxFlat_navy_pressed")
 theme_override_styles/normal = SubResource("StyleBoxFlat_navy")
 text = "Sair"
 
-[node name="Shake" type="CheckButton" parent="Menu"]
+[node name="Options" type="HBoxContainer" parent="Menu"]
 layout_mode = 2
 size_flags_horizontal = 4
+theme_override_constants/separation = 12
+
+[node name="Shake" type="CheckButton" parent="Menu/Options"]
+layout_mode = 2
 theme_override_font_sizes/font_size = 18
 theme_override_styles/focus = SubResource("StyleBoxFlat_focus")
 button_pressed = true
-text = "Tremor de tela"
+text = "Tremor"
+
+[node name="Music" type="CheckButton" parent="Menu/Options"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+theme_override_styles/focus = SubResource("StyleBoxFlat_focus")
+button_pressed = true
+text = "Música"
+
+[node name="Effects" type="CheckButton" parent="Menu/Options"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+theme_override_styles/focus = SubResource("StyleBoxFlat_focus")
+button_pressed = true
+text = "Efeitos"
 
 [node name="Record" type="Label" parent="Menu"]
 visible = false

@@ -29,6 +29,7 @@ const LAST_SHOT_DELAY := 0.6   # explosao/respingo do ultimo tiro duram ~0.45s
 func _ready() -> void:
 	board.round_won.connect(_on_round_won)
 	board.round_lost.connect(_on_round_lost)
+	board.shot_resolved.connect(func(d: Dictionary) -> void: Sfx.shot_result(d, board.streak))
 
 	fleet_bar.bind(board)
 	hud.bind(board)
@@ -90,14 +91,17 @@ func _on_tutorial_finished(play: bool) -> void:
 
 func _on_round_lost() -> void:
 	await get_tree().create_timer(LAST_SHOT_DELAY).timeout
+	Sfx.stop_music()
 	fader.swap(func():
 		_set_board_visible(false)
 		admiral_bar.visible = false
 		sink.play()
+		Sfx.play(&"gameover")
 	)
 
 ## Navio afundou (ou o jogador pulou): painel de fim de jogo por cima do mar.
 func _show_game_over() -> void:
+	Sfx.play(&"lose")
 	game_over.visible = true
 	game_over.open(board.score, board.target)
 
@@ -151,6 +155,7 @@ func _on_sell_admiral(adm: Effect) -> void:
 	menu.id_pressed.connect(func(id: int) -> void:
 		if id == 0:
 			Game.sell_admiral(adm)
+			Sfx.play(&"sell")
 	)
 	menu.popup_hide.connect(menu.queue_free)
 	menu.popup(Rect2i(get_global_mouse_position(), Vector2i(220, 0)))
@@ -158,6 +163,7 @@ func _on_sell_admiral(adm: Effect) -> void:
 func _on_round_won() -> void:
 	# Deixa a animacao do ultimo tiro (explosao/respingo) terminar antes da doca.
 	await get_tree().create_timer(LAST_SHOT_DELAY).timeout
+	Sfx.play(&"win")
 	# Treino nao tem doca/mapa: o proprio Tutorial mostra o fechamento.
 	if Game.tutorial:
 		tutorial.notify_won()
@@ -166,6 +172,7 @@ func _on_round_won() -> void:
 		_set_board_visible(false)
 		admiral_bar.visible = false
 		dock.play(Game.last_stars)
+		Sfx.play_music(&"porto")
 	)
 
 ## Navio atracou (ou o jogador pulou a animacao): avanca a rodada e abre a
@@ -185,6 +192,7 @@ func _show_map(sail: bool) -> void:
 	admiral_bar.visible = false
 	level_map.visible = true
 	level_map.open(sail)
+	Sfx.play_music(&"porto")
 
 func _on_map_closed() -> void:
 	fader.swap(func():
@@ -198,8 +206,12 @@ func _show_shop() -> void:
 	admiral_bar.visible = true
 	admiral_bar.set_sellable(true)
 	shop.open()
+	Sfx.play_music(&"porto")
 
+## "Zarpar": buzina do navio saindo do porto e musica de batalha.
 func _on_shop_closed() -> void:
+	Sfx.play(&"horn")
+	Sfx.play_music(&"batalha")
 	fader.swap(func():
 		shop.visible = false
 		_set_board_visible(true)
