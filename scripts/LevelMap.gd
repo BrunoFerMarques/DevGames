@@ -134,7 +134,9 @@ func _continue() -> void:
 	closed.emit()
 
 func _refresh_info() -> void:
-	var head := "Ante %d · Rodada %d/%d" % [Game.ante, Game.round_in_ante, R]
+	# Ante x/8 ate vencer a run; depois so o numero (modo sem fim).
+	var ante_text := "Ante %d/%d" % [Game.ante, Game.FINAL_ANTE] if Game.ante <= Game.FINAL_ANTE else "Ante %d" % Game.ante
+	var head := "Nível %d · %s · Rodada %d/%d" % [Game.difficulty, ante_text, Game.round_in_ante, R]
 	continue_btn.disabled = Game.needs_route_choice()
 	detail_label.remove_theme_color_override("font_color")
 	if Game.needs_route_choice():

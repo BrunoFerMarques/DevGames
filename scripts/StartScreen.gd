@@ -36,7 +36,14 @@ const BOB_TIME := 1.6
 @onready var shake_toggle: CheckButton = $Menu/Options/Shake
 @onready var music_toggle: CheckButton = $Menu/Options/Music
 @onready var sfx_toggle: CheckButton = $Menu/Options/Effects
+const GOLD_COLOR := Color("#f3c44b")
+const WON_COLOR := Color("#2fbfb0")
+
 @onready var record_label: Label = $Menu/Record
+@onready var diff_prev: Button = $Menu/Difficulty/Prev
+@onready var diff_next: Button = $Menu/Difficulty/Next
+@onready var diff_name: Label = $Menu/Difficulty/Name
+@onready var diff_rule: Label = $Menu/DifficultyRule
 
 var _tweens: Array[Tween] = []
 
@@ -48,6 +55,8 @@ func _ready() -> void:
 	shake_toggle.toggled.connect(Game.set_screen_shake)
 	music_toggle.toggled.connect(Game.set_music_on)
 	sfx_toggle.toggled.connect(Game.set_sfx_on)
+	diff_prev.pressed.connect(func(): _step_difficulty(-1))
+	diff_next.pressed.connect(func(): _step_difficulty(1))
 	# No navegador nao tem janela pra fechar.
 	quit_btn.visible = not OS.has_feature("web")
 	# Pop do logo cresce a partir do centro, qualquer que seja o tamanho da tela.
@@ -61,6 +70,7 @@ func open() -> void:
 	music_toggle.set_pressed_no_signal(Game.music_on)
 	sfx_toggle.set_pressed_no_signal(Game.sfx_on)
 	Sfx.play_music(&"porto")
+	_refresh_difficulty()
 	tutorial_btn.text = "Treino" if Game.tutorial_done else "Treino (recomendado)"
 	resume_btn.visible = Game.has_checkpoint()
 	if resume_btn.visible:
@@ -112,3 +122,23 @@ func _fit_stage() -> void:
 	var s: float = maxf(size.x / STAGE_SIZE.x, size.y / STAGE_SIZE.y)
 	stage.scale = Vector2(s, s)
 	stage.position = (size - STAGE_SIZE * s) / 2.0
+
+## Nivel da proxima run ("Jogar"). So passa pelos liberados; no ultimo
+## liberado mostra como liberar o seguinte.
+func _step_difficulty(step: int) -> void:
+	Game.select_difficulty(Game.selected_difficulty + step)
+	_refresh_difficulty()
+
+func _refresh_difficulty() -> void:
+	var level := Game.selected_difficulty
+	# Nivel ja vencido fica em verde-sonar (a fonte pixel nao tem simbolo de check).
+	var won := level <= Game.best_won_difficulty
+	diff_name.text = DifficultyCatalog.title(level)
+	diff_name.add_theme_color_override("font_color", WON_COLOR if won else GOLD_COLOR)
+	diff_prev.disabled = level <= 1
+	diff_next.disabled = level >= Game.unlocked_difficulty
+	var text := DifficultyCatalog.rule_text(level)
+	if level == Game.unlocked_difficulty and level < DifficultyCatalog.count():
+		text += "
+Vença o chefe do Ante %d para liberar o Nível %d." % [Game.FINAL_ANTE, level + 1]
+	diff_rule.text = text

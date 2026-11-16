@@ -70,6 +70,9 @@ const SAVE_PATH := "user://progresso.cfg"
 const TUTORIAL_MONEY := 4
 const TUTORIAL_GRID := 5
 const TUTORIAL_TARGET := 200
+## Vencer o chefe deste ante vence a run (libera o proximo nivel de
+## dificuldade); depois a run segue sem fim.
+const FINAL_ANTE := 8
 
 var nation = null            # Effect ou null
 var admirals: Array = []     # Array de Effect (coringas comprados na loja)
@@ -78,6 +81,13 @@ var money: int = START_MONEY
 var ante: int = 1
 var round_in_ante: int = 1
 var boss_modifier = null     # Effect ou null - so ativo na 3a rodada de cada ante
+## Nivel de dificuldade da run atual (DifficultyCatalog): vale ele e todos
+## os anteriores. Vem de selected_difficulty ao comecar e fica no checkpoint.
+var difficulty: int = 1
+## Venceu o chefe do FINAL_ANTE agora (Main mostra a tela de vitoria e zera).
+var run_won: bool = false
+## A vitoria liberou um nivel novo (tela de vitoria avisa).
+var unlocked_now: bool = false
 
 # --- Config recalculada a cada rodada ---
 var grid_size: int = 6
@@ -105,6 +115,9 @@ var checkpoint: Dictionary = {}  # estado logo apos o ultimo chefe vencido
 var screen_shake: bool = true    # opcao de acessibilidade (tela de inicio)
 var music_on: bool = true
 var sfx_on: bool = true
+var selected_difficulty: int = 1    # escolhido na tela de inicio
+var unlocked_difficulty: int = 1    # maior nivel liberado
+var best_won_difficulty: int = 0    # maior nivel ja vencido (0 = nenhum)
 
 func _ready() -> void:
 	randomize()
@@ -172,6 +185,8 @@ func refill_player_ships() -> void:
 			for adm in admirals:
 				n = adm.modify_shots(n)
 		else:
+			if rule(DifficultyCatalog.LESS_SONAR):
+				n -= 1
 			if boss_modifier:
 				n = boss_modifier.modify_sonar(n)
 			if nation:
@@ -278,7 +293,21 @@ func base_target_for(a: int, round_n: int) -> int:
 	var base := float(ANTE_BASE_TARGETS[mini(a, last) - 1])
 	if a > last:
 		base *= pow(ANTE_TARGET_GROWTH, a - last)
-	return int(base * (1.0 + ROUND_TARGET_STEP * (round_n - 1)))
+	if rule(DifficultyCatalog.TARGET_GROWTH_RULE):
+		base *= pow(1.0 + DifficultyCatalog.TARGET_GROWTH, a - 1)
+	var round_mult := 1.0 + ROUND_TARGET_STEP * (round_n - 1)
+	if round_n == ROUNDS_PER_ANTE and rule(DifficultyCatalog.BOSS_TARGET):
+		round_mult = DifficultyCatalog.BOSS_TARGET_MULT
+	return int(base * round_mult)
+
+## Regra do nivel `level` vale nesta run (niveis sao cumulativos).
+func rule(level: int) -> bool:
+	return difficulty >= level
+
+## Nivel escolhido na tela de inicio pra proxima run (so os liberados).
+func select_difficulty(level: int) -> void:
+	selected_difficulty = clampi(level, 1, unlocked_difficulty)
+	_save_progress()
 
 func _apply_boss_target() -> void:
 	target_score = boss_modifier.modify_target(_base_target_score) if boss_modifier else _base_target_score
@@ -359,9 +388,22 @@ func record_win(score: int, target: int) -> int:
 		bonus += DANGER_REWARD
 	add_money(bonus)
 	route_log[stage_index()] = {"lane": stop_lane, "stars": stars}
+	if round_in_ante == ROUNDS_PER_ANTE and ante == FINAL_ANTE and not tutorial:
+		_win_run()
 	if round_in_ante == ROUNDS_PER_ANTE:
 		_save_checkpoint()
 	return bonus
+
+## Chefe do ultimo ante vencido: anota o nivel vencido e libera o seguinte.
+## Salva junto com o checkpoint (record_win chama _save_checkpoint depois).
+func _win_run() -> void:
+	run_won = true
+	best_won_difficulty = maxi(best_won_difficulty, difficulty)
+	var next := mini(difficulty + 1, DifficultyCatalog.count())
+	unlocked_now = next > unlocked_difficulty
+	if unlocked_now:
+		unlocked_difficulty = next
+		selected_difficulty = next
 
 # --- Treino --------------------------------------------------------------------
 
@@ -370,6 +412,7 @@ func record_win(score: int, target: int) -> int:
 func setup_tutorial() -> void:
 	reset_run()
 	tutorial = true
+	difficulty = 1
 	money = TUTORIAL_MONEY
 	grid_size = TUTORIAL_GRID
 	target_score = TUTORIAL_TARGET
@@ -404,6 +447,7 @@ func has_checkpoint() -> bool:
 func start_new_run() -> void:
 	clear_checkpoint()
 	reset_run()
+	difficulty = selected_difficulty
 
 func clear_checkpoint() -> void:
 	if checkpoint.is_empty():
@@ -428,11 +472,13 @@ func _save_checkpoint() -> void:
 		"admirals": admirals.map(func(a: Effect) -> StringName: return a.id),
 		"ships": ships,
 		"log": route_log.duplicate(true),
+		"difficulty": difficulty,
 	}
 	_save_progress()
 
 func load_checkpoint() -> void:
 	reset_run()
+	difficulty = checkpoint.get("difficulty", 1)
 	ante = checkpoint["ante"]
 	money = checkpoint["money"]
 	route_log = checkpoint["log"].duplicate(true)
@@ -483,6 +529,9 @@ func _save_progress() -> void:
 	cfg.set_value("opcoes", "treino", tutorial_done)
 	cfg.set_value("opcoes", "musica", music_on)
 	cfg.set_value("opcoes", "efeitos", sfx_on)
+	cfg.set_value("dificuldade", "escolhida", selected_difficulty)
+	cfg.set_value("dificuldade", "liberada", unlocked_difficulty)
+	cfg.set_value("dificuldade", "vencida", best_won_difficulty)
 	cfg.save(SAVE_PATH)
 
 func _load_progress() -> void:
@@ -495,6 +544,9 @@ func _load_progress() -> void:
 	tutorial_done = cfg.get_value("opcoes", "treino", false)
 	music_on = cfg.get_value("opcoes", "musica", true)
 	sfx_on = cfg.get_value("opcoes", "efeitos", true)
+	unlocked_difficulty = clampi(cfg.get_value("dificuldade", "liberada", 1), 1, DifficultyCatalog.count())
+	selected_difficulty = clampi(cfg.get_value("dificuldade", "escolhida", 1), 1, unlocked_difficulty)
+	best_won_difficulty = cfg.get_value("dificuldade", "vencida", 0)
 
 ## Grade menor nos antes iniciais, cresce ate o maximo.
 func _grid_for_ante(a: int) -> int:
@@ -513,16 +565,21 @@ func _fleet_for_ante(a: int) -> Array[EnemyShipDef]:
 	var sizes := _sizes_for_ante(a)
 	var cargo_count := 0
 	var has_sub := false
+	# Dificuldade "Capitao": blindado e submarino desde o ante 1, blindagem mais comum.
+	var hard := rule(DifficultyCatalog.HARD_HULLS)
+	var sub_from := 1 if hard else SUB_FROM_ANTE
+	var armor_from := 1 if hard else ARMOR_FROM_ANTE
+	var armor_chance := DifficultyCatalog.HARD_ARMOR_CHANCE if hard else ARMOR_CHANCE
 	var out: Array[EnemyShipDef] = []
 	for i in sizes.size():
 		var s: int = sizes[i]
-		if not has_sub and i > 0 and s <= 3 and a >= SUB_FROM_ANTE and randf() < SUB_CHANCE:
+		if not has_sub and i > 0 and s <= 3 and a >= sub_from and randf() < SUB_CHANCE:
 			out.append(EnemyShipDef.submarine(s))
 			has_sub = true
 		elif cargo_count < 2 and i > 0 and randf() < CARGO_CHANCE:
 			out.append(EnemyShipDef.cargo(s))
 			cargo_count += 1
-		elif a >= ARMOR_FROM_ANTE and randf() < ARMOR_CHANCE:
+		elif a >= armor_from and randf() < armor_chance:
 			out.append(EnemyShipDef.armored(s))
 		else:
 			out.append(EnemyShipDef.warship(s))
@@ -535,9 +592,13 @@ func _fleet_for_ante(a: int) -> Array[EnemyShipDef]:
 func _smugglers_for_ante(a: int) -> int:
 	return clampi((a + 1) / 2, 1, 3)
 
-## Sem minas no 1o ante (aprendizado); depois cresce ate 3.
+## Sem minas no 1o ante (aprendizado); depois cresce ate 3. Dificuldade
+## "Sargento" soma +1 em toda rodada.
 func _mines_for_ante(a: int) -> int:
-	return clampi(a - 1, 0, 3)
+	var n := clampi(a - 1, 0, 3)
+	if rule(DifficultyCatalog.EXTRA_MINE):
+		n += 1
+	return n
 
 ## Antes iniciais: poucos navios, grandes. Depois: mais navios, menores.
 ## Navios nunca se encostam (Board._place_fleet), entao a grade 6x6 nao

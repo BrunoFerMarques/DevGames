@@ -229,17 +229,17 @@ anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -240.0
-offset_top = -270.0
-offset_right = 240.0
-offset_bottom = 350.0
+offset_left = -260.0
+offset_top = -314.0
+offset_right = 260.0
+offset_bottom = 314.0
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_constants/separation = 14
+theme_override_constants/separation = 9
 alignment = 1
 
 [node name="LogoBox" type="Control" parent="Menu"]
-custom_minimum_size = Vector2(0, 330)
+custom_minimum_size = Vector2(0, 205)
 layout_mode = 2
 mouse_filter = 2
 
@@ -267,8 +267,52 @@ theme_override_styles/pressed = SubResource("StyleBoxFlat_play_pressed")
 theme_override_styles/normal = SubResource("StyleBoxFlat_play")
 text = "Jogar"
 
+[node name="Difficulty" type="HBoxContainer" parent="Menu"]
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_constants/separation = 8
+
+[node name="Prev" type="Button" parent="Menu/Difficulty"]
+custom_minimum_size = Vector2(40, 36)
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+theme_override_styles/focus = SubResource("StyleBoxFlat_focus")
+theme_override_styles/hover = SubResource("StyleBoxFlat_navy_hover")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_navy_pressed")
+theme_override_styles/normal = SubResource("StyleBoxFlat_navy")
+text = "<"
+
+[node name="Name" type="Label" parent="Menu/Difficulty"]
+custom_minimum_size = Vector2(260, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.952941, 0.768627, 0.294118, 1)
+theme_override_font_sizes/font_size = 20
+text = "Nível 1 · Grumete"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Next" type="Button" parent="Menu/Difficulty"]
+custom_minimum_size = Vector2(40, 36)
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+theme_override_styles/focus = SubResource("StyleBoxFlat_focus")
+theme_override_styles/hover = SubResource("StyleBoxFlat_navy_hover")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_navy_pressed")
+theme_override_styles/normal = SubResource("StyleBoxFlat_navy")
+text = ">"
+
+[node name="DifficultyRule" type="Label" parent="Menu"]
+custom_minimum_size = Vector2(520, 0)
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_colors/font_color = Color(0.992157, 0.964706, 0.890196, 0.8)
+theme_override_font_sizes/font_size = 15
+text = "..."
+horizontal_alignment = 1
+autowrap_mode = 3
+
 [node name="Tutorial" type="Button" parent="Menu"]
-custom_minimum_size = Vector2(280, 48)
+custom_minimum_size = Vector2(280, 42)
 layout_mode = 2
 size_flags_horizontal = 4
 theme_override_colors/font_color = Color(0.952941, 0.768627, 0.294118, 1)
@@ -281,7 +325,7 @@ text = "Treino"
 
 [node name="Resume" type="Button" parent="Menu"]
 visible = false
-custom_minimum_size = Vector2(280, 48)
+custom_minimum_size = Vector2(280, 42)
 layout_mode = 2
 size_flags_horizontal = 4
 theme_override_colors/font_color = Color(0.184314, 0.74902, 0.690196, 1)
@@ -293,7 +337,7 @@ theme_override_styles/normal = SubResource("StyleBoxFlat_navy")
 text = "Continuar"
 
 [node name="Quit" type="Button" parent="Menu"]
-custom_minimum_size = Vector2(280, 48)
+custom_minimum_size = Vector2(280, 42)
 layout_mode = 2
 size_flags_horizontal = 4
 theme_override_font_sizes/font_size = 22

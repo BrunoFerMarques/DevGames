@@ -648,7 +648,7 @@ func _check_end() -> void:
 
 func _run_round_end_effects() -> void:
 	var ctx: Dictionary = {"score": score, "target": target, "game": Game}
-	Game.add_money(ROUND_BASE_REWARD + _overkill_reward())
+	Game.add_money(base_reward() + _overkill_reward())
 	if Game.nation:
 		Game.nation.on_round_end(ctx)
 	for adm in Game.admirals:
@@ -656,6 +656,13 @@ func _run_round_end_effects() -> void:
 	# Por ultimo: estrelas, bonus da rota e checkpoint (se era o chefe) ja
 	# com todo o dinheiro da vitoria no bolso.
 	Game.record_win(score, target)
+
+## Recompensa fixa da vitoria; dificuldade "Marinheiro" corta na 1a rodada
+## de cada ante.
+func base_reward() -> int:
+	if Game.round_in_ante == 1 and Game.rule(DifficultyCatalog.NO_FIRST_REWARD):
+		return 0
+	return ROUND_BASE_REWARD
 
 ## Proporcional a meta (vale igual no ante 1 e no 8), com teto.
 func _overkill_reward() -> int:
