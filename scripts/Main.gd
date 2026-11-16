@@ -25,6 +25,7 @@ const LAST_SHOT_DELAY := 0.6   # explosao/respingo do ultimo tiro duram ~0.45s
 @onready var streak_glow: StreakGlow = $StreakGlow
 @onready var impact: ImpactFx = $ImpactFx
 @onready var tutorial: Tutorial = $Tutorial
+@onready var victory: Victory = $Victory
 
 func _ready() -> void:
 	board.round_won.connect(_on_round_won)
@@ -50,6 +51,11 @@ func _ready() -> void:
 	start_screen.tutorial.connect(_on_start_tutorial)
 	tutorial.bind(shop, board, fleet_bar, hud)
 	tutorial.finished.connect(_on_tutorial_finished)
+	victory.continue_run.connect(func():
+		victory.visible = false
+		_go_dock()
+	)
+	victory.to_menu.connect(_on_victory_menu)
 	# Abre na tela de inicio; "Jogar" leva pra carta nautica (parada 1) e de
 	# la pra loja comprar tiros.
 	_set_board_visible(false)
@@ -168,11 +174,29 @@ func _on_round_won() -> void:
 	if Game.tutorial:
 		tutorial.notify_won()
 		return
+	# Chefe do ultimo ante: tela de vitoria antes da doca (nivel liberado).
+	if Game.run_won:
+		Game.run_won = false
+		victory.open()
+		return
+	_go_dock()
+
+func _go_dock() -> void:
 	fader.swap(func():
 		_set_board_visible(false)
 		admiral_bar.visible = false
 		dock.play(Game.last_stars)
 		Sfx.play_music(&"porto")
+	)
+
+## Vitoria -> menu: a run para aqui, mas o checkpoint do ante seguinte ja
+## esta salvo ("Continuar" no menu retoma sem fim).
+func _on_victory_menu() -> void:
+	fader.swap(func():
+		victory.visible = false
+		_set_board_visible(false)
+		admiral_bar.visible = false
+		start_screen.open()
 	)
 
 ## Navio atracou (ou o jogador pulou a animacao): avanca a rodada e abre a

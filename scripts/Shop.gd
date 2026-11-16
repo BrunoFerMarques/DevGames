@@ -91,6 +91,16 @@ func _admiral_pool() -> Array[Effect]:
 func _owns_admiral(id: StringName) -> bool:
 	return Game.admirals.any(func(a: Effect) -> bool: return a.id == id)
 
+## Precos com a dificuldade "Almirante" (+$PRICE_UP em almirante e melhoria).
+func _admiral_price() -> int:
+	return ADMIRAL_PRICE + _difficulty_markup()
+
+func _upgrade_price() -> int:
+	return UPGRADE_PRICE + _difficulty_markup()
+
+func _difficulty_markup() -> int:
+	return DifficultyCatalog.PRICE_UP if Game.rule(DifficultyCatalog.PRICEY_SHOP) else 0
+
 func _pick_random(pool: Array, n: int) -> Array:
 	var copy := pool.duplicate()
 	copy.shuffle()
@@ -141,7 +151,7 @@ func _unload_shot(ship: PlayerShip) -> void:
 func _buy_admiral(def: Effect) -> void:
 	if Game.admirals.size() >= Game.MAX_ADMIRALS or _owns_admiral(def.id):
 		return
-	if not Game.spend_money(ADMIRAL_PRICE):
+	if not Game.spend_money(_admiral_price()):
 		return
 	Game.admirals.append(def)
 	_admiral_offers.erase(def)
@@ -169,7 +179,7 @@ func _pick_ship(kind: PlayerShip.Kind, on_pick: Callable, label_for: Callable) -
 	menu.popup(Rect2i(get_global_mouse_position(), Vector2i(260, 0)))
 
 func _buy_upgrade(def: ShipUpgradeDef) -> void:
-	if Game.money < UPGRADE_PRICE:
+	if Game.money < _upgrade_price():
 		return
 	var kind := PlayerShip.Kind.SONAR if def.for_sonar() else PlayerShip.Kind.SHOT
 	_pick_ship(kind, func(ship: PlayerShip) -> void: _apply_upgrade(def, ship),
@@ -179,7 +189,7 @@ func _buy_upgrade(def: ShipUpgradeDef) -> void:
 			return ship.display_name)
 
 func _apply_upgrade(def: ShipUpgradeDef, ship: PlayerShip) -> void:
-	if not Game.spend_money(UPGRADE_PRICE):
+	if not Game.spend_money(_upgrade_price()):
 		return
 	if ship.upgrade != null and ship.upgrade.id == def.id:
 		ship.upgrade_level += 1
@@ -256,7 +266,7 @@ func _refresh() -> void:
 	else:
 		for up in _upgrade_offers:
 			var title := ("SONAR · " + up.display_name) if up.for_sonar() else up.display_name
-			upgrade_items.add_child(_make_item_card(title, up.description, UPGRADE_PRICE,
+			upgrade_items.add_child(_make_item_card(title, up.description, _upgrade_price(),
 				func(): _buy_upgrade(up)))
 		for st in _shot_offers:
 			upgrade_items.add_child(_make_item_card(st.display_name, st.description, st.price,
@@ -378,7 +388,7 @@ func _make_admiral_card(adm: Effect, fleet_full: bool) -> Control:
 	var btn := Button.new()
 	btn.custom_minimum_size = Vector2(298, 0)
 	btn.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	btn.disabled = fleet_full or Game.money < ADMIRAL_PRICE
+	btn.disabled = fleet_full or Game.money < _admiral_price()
 	_dim_if_disabled(btn)
 	btn.pressed.connect(func(): _buy_admiral(adm))
 	var row := HBoxContainer.new()
@@ -403,7 +413,7 @@ func _make_admiral_card(adm: Effect, fleet_full: bool) -> Control:
 	var desc_lbl := _card_label(adm.description, Color.WHITE, HORIZONTAL_ALIGNMENT_LEFT)
 	desc_lbl.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	box.add_child(desc_lbl)
-	box.add_child(_card_label("frota cheia" if fleet_full else "$%d" % ADMIRAL_PRICE, GOLD, HORIZONTAL_ALIGNMENT_LEFT))
+	box.add_child(_card_label("frota cheia" if fleet_full else "$%d" % _admiral_price(), GOLD, HORIZONTAL_ALIGNMENT_LEFT))
 	return btn
 
 func _card_box(btn: Button) -> VBoxContainer:
