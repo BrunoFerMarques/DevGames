@@ -49,8 +49,9 @@ func _ready() -> void:
 	start_screen.play.connect(_on_start_play)
 	start_screen.resume.connect(_on_resume_checkpoint)
 	start_screen.tutorial.connect(_on_start_tutorial)
-	tutorial.bind(shop, board, fleet_bar, hud)
+	tutorial.bind(shop, board, fleet_bar, hud, level_map)
 	tutorial.finished.connect(_on_tutorial_finished)
+	tutorial.screen_requested.connect(_on_tutorial_screen)
 	victory.continue_run.connect(func():
 		victory.visible = false
 		_go_dock()
@@ -91,8 +92,21 @@ func _on_tutorial_finished(play: bool) -> void:
 	fader.swap(func():
 		_set_board_visible(false)
 		shop.visible = false
+		level_map.visible = false
 		admiral_bar.visible = false
 		start_screen.open()
+	)
+
+## Tour do fim do treino: loja e carta nautica so pra mostrar. O Tutorial
+## barra os cliques, entao nada e' comprado nem escolhido (e a carta, com a
+## rota ainda por escolher, nao deixa ir pra loja).
+func _on_tutorial_screen(screen: StringName) -> void:
+	fader.swap(func():
+		match screen:
+			&"shop":
+				_show_shop()
+			&"map":
+				_show_map(false)
 	)
 
 func _on_round_lost() -> void:
@@ -170,7 +184,8 @@ func _on_round_won() -> void:
 	# Deixa a animacao do ultimo tiro (explosao/respingo) terminar antes da doca.
 	await get_tree().create_timer(LAST_SHOT_DELAY).timeout
 	Sfx.play(&"win")
-	# Treino nao tem doca/mapa: o proprio Tutorial mostra o fechamento.
+	# Treino nao tem doca: o proprio Tutorial segue (recompensa e tour da
+	# loja e do mapa, via screen_requested).
 	if Game.tutorial:
 		tutorial.notify_won()
 		return

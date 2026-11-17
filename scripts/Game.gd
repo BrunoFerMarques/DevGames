@@ -66,10 +66,12 @@ const TREASURE_TARGET_MULT := 1.1
 const STAR_RATIOS: Array[float] = [1.5, 2.0]
 const STAR_BONUS := 1            ## $ por estrela alem da 1a
 const SAVE_PATH := "user://progresso.cfg"
-## Treino: 4 tiros no Encouracado afundam a frota fixa inteira (Tutorial.gd).
-const TUTORIAL_MONEY := 4
+## Treino: "Carregar tudo" com $6 enche o Encouracado (4) e poe 2 no
+## Cruzador, o exato pra afundar a frota fixa (Tutorial.gd): Destroyer
+## blindado (4 tiros) e Cargueiro (2). O roteiro fecha com 520 pontos.
+const TUTORIAL_MONEY := 6
 const TUTORIAL_GRID := 5
-const TUTORIAL_TARGET := 200
+const TUTORIAL_TARGET := 300
 ## Vencer o chefe deste ante vence a run (libera o proximo nivel de
 ## dificuldade); depois a run segue sem fim.
 const FINAL_ANTE := 8
@@ -107,6 +109,8 @@ var _bosses: Dictionary = {}     # ante -> Effect (sorteado cedo pro mapa mostra
 var tutorial: bool = false
 ## Posicao fixa da frota inimiga ({def, body, horiz}); vazio = sorteia (Board).
 var fixed_layout: Array = []
+## Minas nas casas fixas (so vale junto com fixed_layout).
+var fixed_mines: Array[Vector2i] = []
 
 # --- Salvo em disco ---
 var tutorial_done: bool = false
@@ -138,6 +142,7 @@ func reset_run() -> void:
 	_bosses.clear()
 	tutorial = false
 	fixed_layout.clear()
+	fixed_mines.clear()
 	# Frota volta a inicial: navios comprados/vendidos e melhorias somem.
 	_build_starting_fleet()
 	if nation:
@@ -387,7 +392,9 @@ func record_win(score: int, target: int) -> int:
 	if stop_kind() == Stop.DANGER:
 		bonus += DANGER_REWARD
 	add_money(bonus)
-	route_log[stage_index()] = {"lane": stop_lane, "stars": stars}
+	# Treino nao marca parada: o tour do mapa no fim mostra a carta limpa.
+	if not tutorial:
+		route_log[stage_index()] = {"lane": stop_lane, "stars": stars}
 	if round_in_ante == ROUNDS_PER_ANTE and ante == FINAL_ANTE and not tutorial:
 		_win_run()
 	if round_in_ante == ROUNDS_PER_ANTE:
@@ -407,8 +414,9 @@ func _win_run() -> void:
 
 # --- Treino --------------------------------------------------------------------
 
-## Rodada de treino: grade 5x5, Destroyer em B2-C2 e Cargueiro em D4-D5
-## (posicoes fixas pro roteiro do Tutorial bater) e dinheiro so pros 4 tiros.
+## Rodada de treino: grade 5x5, Destroyer blindado em B2-C2, Cargueiro em
+## D4-D5 e uma mina em B4 (posicoes fixas pro roteiro do Tutorial bater) e
+## dinheiro so pros 6 tiros.
 func setup_tutorial() -> void:
 	reset_run()
 	tutorial = true
@@ -419,7 +427,7 @@ func setup_tutorial() -> void:
 	_base_target_score = TUTORIAL_TARGET
 	boss_modifier = null
 	mine_count = 0
-	var destroyer := EnemyShipDef.warship(2)
+	var destroyer := EnemyShipDef.armored(2)
 	var cargo := EnemyShipDef.cargo(2)
 	enemy_fleet = [destroyer, cargo]
 	var destroyer_body: Array[Vector2i] = [Vector2i(1, 1), Vector2i(2, 1)]
@@ -428,11 +436,13 @@ func setup_tutorial() -> void:
 		{"def": destroyer, "body": destroyer_body, "horiz": true},
 		{"def": cargo, "body": cargo_body, "horiz": false},
 	]
+	fixed_mines = [Vector2i(1, 3)]
 	money_changed.emit(money)
 
 func finish_tutorial() -> void:
 	tutorial = false
 	fixed_layout.clear()
+	fixed_mines.clear()
 	tutorial_done = true
 	_save_progress()
 
