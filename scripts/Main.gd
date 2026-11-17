@@ -167,20 +167,11 @@ func _unhandled_input(event: InputEvent) -> void:
 			if board.visible:
 				board.debug_reveal()
 
-## Confirma antes de vender - venda e' definitiva (o Almirante some da frota
-## e pode nao voltar a aparecer na loja).
+## Venda confirmada no painel do almirante (AdmiralBar) - e' definitiva: o
+## Almirante sai da frota e pode nao voltar a aparecer na loja.
 func _on_sell_admiral(adm: Effect) -> void:
-	var menu := PopupMenu.new()
-	add_child(menu)
-	menu.add_item("Vender %s por %d" % [adm.display_name, Game.ADMIRAL_SELL_REFUND], 0)
-	menu.add_item("Cancelar", 1)
-	menu.id_pressed.connect(func(id: int) -> void:
-		if id == 0:
-			Game.sell_admiral(adm)
-			Sfx.play(&"sell")
-	)
-	menu.popup_hide.connect(menu.queue_free)
-	menu.popup(Rect2i(get_global_mouse_position(), Vector2i(220, 0)))
+	if Game.sell_admiral(adm):
+		Sfx.play(&"sell")
 
 func _on_round_won() -> void:
 	# Deixa a animacao do ultimo tiro (explosao/respingo) terminar antes da doca.
