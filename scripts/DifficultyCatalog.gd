@@ -33,11 +33,11 @@ const NAMES: Array[String] = [
 ]
 const RULES: Array[String] = [
 	"Sem regras extras: o jogo como ele é.",
-	"A 1ª rodada de cada ante não paga a recompensa base.",
-	"Metas sobem 10% a mais a cada ante.",
+	"A 1ª rodada de cada setor não paga a recompensa base.",
+	"Metas sobem 10% a mais a cada setor.",
 	"+1 mina em toda rodada.",
 	"-1 uso de sonar por rodada.",
-	"Blindados e submarinos desde o ante 1; blindagem mais comum.",
+	"Blindados e submarinos desde o setor 1; blindagem mais comum.",
 	"Meta do chefe é x2.5 em vez de x2.",
 	"Almirantes e melhorias custam $%d a mais." % PRICE_UP,
 ]

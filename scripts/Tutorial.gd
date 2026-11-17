@@ -176,11 +176,11 @@ func _build_steps() -> Array[Dictionary]:
 			"text": "No ESTALEIRO você compra e vende navios. Cada navio ocupa vagas e a soma não pode passar da Doca."},
 		# --- Tour do mapa (so leitura) ---
 		{"on": &"next", "screen": &"map", "rect": func() -> Rect2: return _map.ante_rect(Game.ante),
-			"text": "Esta é a carta náutica. Cada ANTE tem 3 rodadas. Nas 2 primeiras você escolhe a rota: a segura (em cima) ou a especial (embaixo), Águas perigosas ou Rota do tesouro."},
+			"text": "Esta é a carta náutica. Cada SETOR tem 3 rodadas. Nas 2 primeiras você escolhe a rota: a segura (em cima) ou a especial (embaixo), Águas perigosas ou Rota do tesouro."},
 		{"on": &"next", "rect": func() -> Rect2: return _map.ante_rect(Game.ante),
 			"text": "A 3ª rodada é o CHEFE: meta maior e um desafio que muda as regras. Vencer o chefe salva um CHECKPOINT para tentar de novo se afundar."},
 		{"on": &"final",
-			"text": "Treino concluído! Passar de 1,5× e 2× a meta dá estrelas e $ extra. Vença o chefe do Ante %d para vencer a run e liberar o próximo nível de dificuldade. Bons mares, almirante!" % Game.FINAL_ANTE},
+			"text": "Treino concluído! Passar de 1,5× e 2× a meta dá estrelas e $ extra. Vença o chefe do Setor %d para vencer a run e liberar o próximo nível de dificuldade. Bons mares, almirante!" % Game.FINAL_ANTE},
 	]
 	return steps
 

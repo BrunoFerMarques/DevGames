@@ -24,7 +24,7 @@ func open(score: int, target: int) -> void:
 	stats_label.text = "Pontuacao final: %d / %d" % [score, target]
 	resume_btn.visible = Game.has_checkpoint()
 	if resume_btn.visible:
-		resume_btn.text = "Voltar ao checkpoint (Ante %d)" % Game.checkpoint["ante"]
+		resume_btn.text = "Voltar ao checkpoint (Setor %d)" % Game.checkpoint["ante"]
 	# Entra com "pop" (escurece o fundo, painel cresce passando um pouco do
 	# tamanho e assenta) em vez de aparecer seco.
 	dim.modulate.a = 0.0
