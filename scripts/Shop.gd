@@ -257,8 +257,7 @@ func _refresh() -> void:
 	_clear(ship_items)
 	for def in _ship_offers:
 		var full := not Game.has_dock_room(def)
-		var card := _make_item_card(def.display_name, "%s\n%s" % [def.summary(), def.perk_text],
-			def.price, func(): _buy_ship(def), "doca cheia" if full else "")
+		var card := _make_ship_card(def, full)
 		if full:
 			card.tooltip_text = "Venda um navio ($) ou contrate um almirante de estaleiro."
 		ship_items.add_child(card)
@@ -272,7 +271,7 @@ func _refresh() -> void:
 	_refresh_shots()
 
 func _refresh_shots() -> void:
-	shots_info.text = "Navios saem vazios: cada tiro custa $%d e vale só para a próxima rodada." % Game.SHOT_PRICE
+	shots_info.text = "Navios saem vazios: tiro a $%d, só para a próxima rodada." % Game.SHOT_PRICE
 	var used := Game.dock_used()
 	var cap := Game.dock_capacity()
 	dock_label.text = "Doca %d/%d" % [used, cap]
@@ -282,19 +281,18 @@ func _refresh_shots() -> void:
 	for ship in Game.player_ships:
 		if ship.kind == PlayerShip.Kind.SHOT:
 			total += ship.bought_shots
-			shot_rows.add_child(_make_shot_row(ship))
+			shot_rows.add_child(_fleet_entry(ship, _make_shot_row(ship)))
 		else:
 			var row := HBoxContainer.new()
 			row.add_theme_constant_override("separation", 6)
 			var lbl := Label.new()
-			var up := "  [%s x%d]" % [ship.upgrade.display_name, ship.upgrade_level] if ship.upgrade else ""
-			lbl.text = "%s: %d usos%s" % [ship.display_name, ship.round_capacity(), up]
+			lbl.text = "%d usos" % ship.round_capacity()
 			lbl.add_theme_color_override("font_color", Color("#2fbfb0"))
 			lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			lbl.clip_text = true
 			row.add_child(lbl)
 			row.add_child(_sell_button(ship))
-			shot_rows.add_child(row)
+			shot_rows.add_child(_fleet_entry(ship, row))
 	shots_total.text = "Total: %d tiros" % total
 	# Zarpar sem tiro perde a rodada na hora: so deixa quando nao da pra pagar
 	# nem um tiro (senao o jogo travaria na loja).
@@ -309,17 +307,38 @@ func _refresh_shots() -> void:
 	else:
 		warning.text = "Sem tiros, a rodada termina na hora!"
 
-func _make_shot_row(ship: PlayerShip) -> Control:
+## Navio da frota na loja: desenho pequeno (com armamento/melhoria, muda na
+## hora da compra) no comeco da linha; nome e vantagem no tooltip, como na
+## barra da batalha.
+func _fleet_entry(ship: PlayerShip, row: HBoxContainer) -> HBoxContainer:
+	var view := _mini_ship()
+	view.show_ship(ship)
+	view.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	# Largura fixa do maior navio: contadores e botoes ficam alinhados.
+	view.custom_minimum_size.x = 96
+	row.add_child(view)
+	row.move_child(view, 0)
+	row.mouse_filter = Control.MOUSE_FILTER_PASS
+	row.tooltip_text = ship.display_name
+	if ship.ship_class:
+		row.tooltip_text += "\n" + ship.ship_class.perk_text
+	if ship.shot_type != PlayerShip.Shot.NORMAL:
+		row.tooltip_text += "\nArmamento: " + ship.shot_tag()
+	if ship.upgrade:
+		row.tooltip_text += "\n%s x%d" % [ship.upgrade.display_name, ship.upgrade_level]
+	return row
+
+func _make_shot_row(ship: PlayerShip) -> HBoxContainer:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 6)
-	var name_lbl := Label.new()
-	name_lbl.text = ship.display_name + ("  " + ship.shot_tag() if ship.shot_tag() != "" else "")
-	name_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	name_lbl.clip_text = true
-	name_lbl.mouse_filter = Control.MOUSE_FILTER_PASS
-	if ship.ship_class:
-		name_lbl.tooltip_text = ship.ship_class.perk_text
-	row.add_child(name_lbl)
+	var tag := Label.new()
+	tag.text = ship.shot_tag()
+	tag.add_theme_font_size_override("font_size", 14)
+	tag.add_theme_color_override("font_color", DIM)
+	tag.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	tag.clip_text = true
+	tag.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(tag)
 	var count := Label.new()
 	count.text = "%d/%d" % [ship.bought_shots, Game.magazine(ship)]
 	count.add_theme_color_override("font_color", GOLD if ship.bought_shots > 0 else DIM)
@@ -382,6 +401,48 @@ func _make_item_card(title: String, desc: String, price: int, on_buy: Callable,
 
 ## Os textos da carta tem cor propria, entao o estilo "desabilitado" do botao
 ## nao aparece: apaga a carta inteira pra ficar claro que nao da pra comprar.
+## Carta do Estaleiro: nome, desenho do navio com pente/vagas do lado,
+## vantagem e preco (ou "doca cheia").
+func _make_ship_card(def: ShipClassDef, full: bool) -> Button:
+	var btn := Button.new()
+	btn.custom_minimum_size = Vector2(196, 0)
+	btn.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	btn.disabled = full or Game.money < def.price
+	btn.pressed.connect(func(): _buy_ship(def))
+	if full:
+		btn.tooltip_text = "Venda um navio ($) ou contrate um almirante de estaleiro."
+	var box := _card_box(btn)
+	box.add_child(_card_label(def.display_name, GOLD, HORIZONTAL_ALIGNMENT_LEFT, CARD_TITLE_SIZE))
+	var pic := HBoxContainer.new()
+	pic.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	pic.add_theme_constant_override("separation", 8)
+	var view := _mini_ship()
+	view.show_class(def)
+	pic.add_child(view)
+	var load_text := "Pente %d" % def.magazine if def.kind == PlayerShip.Kind.SHOT else "Sonar %d" % def.magazine
+	var stats := _card_label("%s\n%d %s" % [load_text, def.tonnage, "vaga" if def.tonnage == 1 else "vagas"],
+		DIM, HORIZONTAL_ALIGNMENT_LEFT, 13)
+	stats.autowrap_mode = TextServer.AUTOWRAP_OFF
+	stats.add_theme_constant_override("line_spacing", -2)
+	stats.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	pic.add_child(stats)
+	box.add_child(pic)
+	var perk := _card_label(def.perk_text, Color.WHITE, HORIZONTAL_ALIGNMENT_LEFT, 14)
+	perk.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	box.add_child(perk)
+	box.add_child(_card_label("doca cheia" if full else "$%d" % def.price, RED if full else GOLD,
+		HORIZONTAL_ALIGNMENT_LEFT, CARD_TITLE_SIZE))
+	_dim_if_disabled(btn)
+	return btn
+
+## Navio pequeno (metade do tamanho, so a faixa do casco) pra loja.
+func _mini_ship() -> ShipView:
+	var view := ShipView.new()
+	view.zoom = 0.5
+	view.hull_only = true
+	view.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	return view
+
 func _dim_if_disabled(btn: Button) -> void:
 	if btn.disabled:
 		btn.modulate.a = 0.5

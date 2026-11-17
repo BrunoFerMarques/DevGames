@@ -1,11 +1,12 @@
 extends HBoxContainer
 class_name FleetBar
 ## Barra de cartas da frota do jogador. Cada navio vira um card clicavel
-## (sprite montado dos segments + carga restante); clicar seleciona o navio
-## no Board, que passa a resolver o proximo clique de celula com ele.
+## (desenho da classe com as modificacoes compradas, via ShipView, + carga
+## restante); clicar seleciona o navio no Board, que passa a resolver o
+## proximo clique de celula com ele.
 
 var _board: Board = null
-var _cards: Dictionary = {}   # PlayerShip -> { "button": Button, "label": Label }
+var _cards: Dictionary = {}   # PlayerShip -> { "button": Button, "label": Label, "view": ShipView }
 
 func bind(board: Board) -> void:
 	_board = board
@@ -31,8 +32,10 @@ func _build_cards() -> void:
 func _make_card(ship: PlayerShip) -> Dictionary:
 	var btn := Button.new()
 	btn.toggle_mode = true
-	# 64 do sprite + 24 da linha de carga (fonte 20px).
-	btn.custom_minimum_size = Vector2(64 * maxi(ship.segments.size(), 1), 88)
+	var view := ShipView.new()
+	view.show_ship(ship)
+	# Sprite (64 de altura) + 24 da linha de carga (fonte 20px).
+	btn.custom_minimum_size = Vector2(maxf(view.custom_minimum_size.x, 64.0), 88)
 	btn.tooltip_text = ship.display_name
 	if ship.ship_class:
 		btn.tooltip_text += "\n" + ship.ship_class.perk_text
@@ -43,28 +46,14 @@ func _make_card(ship: PlayerShip) -> Dictionary:
 	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	btn.add_child(box)
 
-	var sprite_row := HBoxContainer.new()
-	sprite_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	sprite_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	sprite_row.add_theme_constant_override("separation", 0)
-	box.add_child(sprite_row)
-	for tex in ship.segments:
-		var tr := TextureRect.new()
-		tr.texture = tex
-		tr.custom_minimum_size = Vector2(64, 64)
-		tr.stretch_mode = TextureRect.STRETCH_KEEP
-		tr.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		# Classes com o mesmo casco (Encouracado/Cruzador) se distinguem pela cor.
-		if ship.ship_class:
-			tr.modulate = ship.ship_class.tint
-		sprite_row.add_child(tr)
+	box.add_child(view)
 
 	var label := Label.new()
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	box.add_child(label)
 
-	return {"button": btn, "label": label}
+	return {"button": btn, "label": label, "view": view}
 
 ## Retangulo global da carta do navio (o treino destaca ela).
 func card_rect(ship: PlayerShip) -> Rect2:
@@ -88,4 +77,6 @@ func _refresh() -> void:
 		if ship.shot_tag() != "":
 			label.text += " " + ship.shot_tag()
 		btn.disabled = not ship.has_charge()
+		# Armamento/melhoria comprados na loja aparecem no desenho.
+		(parts["view"] as ShipView).show_ship(ship)
 		btn.button_pressed = (ship == _board.selected_ship)

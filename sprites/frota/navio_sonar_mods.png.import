@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dg8bp7eccumx1"
-path="res://.godot/imported/mid.png-64ea07d76b41aacdbf4075f8ab3f4781.ctex"
+uid="uid://c55b5twqjgj02"
+path="res://.godot/imported/navio_sonar_mods.png-30efd10413c6ca6b0088619a3df32065.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://sprites/frota/mid.png"
-dest_files=["res://.godot/imported/mid.png-64ea07d76b41aacdbf4075f8ab3f4781.ctex"]
+source_file="res://sprites/frota/navio_sonar_mods.png"
+dest_files=["res://.godot/imported/navio_sonar_mods.png-30efd10413c6ca6b0088619a3df32065.ctex"]
 
 [params]
 

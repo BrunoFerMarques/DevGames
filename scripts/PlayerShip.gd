@@ -20,7 +20,6 @@ const SHOT_TAGS := {
 @export var id: StringName
 @export var display_name: String
 @export var kind: Kind = Kind.SHOT
-@export var segments: Array[Texture2D] = []
 @export var max_charges: int = 1
 
 ## Melhoria comprada na loja para este navio (1 slot; recomprar a mesma sobe
@@ -42,11 +41,10 @@ var round_cap: int = 0
 var bought_shots: int = 0
 
 func _init(p_id: StringName = &"", p_name: String = "", p_kind: Kind = Kind.SHOT,
-		p_segments: Array[Texture2D] = [], p_max_charges: int = 1) -> void:
+		p_max_charges: int = 1) -> void:
 	id = p_id
 	display_name = p_name
 	kind = p_kind
-	segments = p_segments
 	max_charges = p_max_charges
 	charges = p_max_charges
 

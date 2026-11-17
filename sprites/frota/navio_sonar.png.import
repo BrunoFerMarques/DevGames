@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://jyo441jajali"
-path="res://.godot/imported/bow.png-66ede858269df901b1edbacf31a7a35d.ctex"
+uid="uid://ch6qyoegeh26t"
+path="res://.godot/imported/navio_sonar.png-d97c7decab39b6a1fee3d32f836a5073.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://sprites/frota/bow.png"
-dest_files=["res://.godot/imported/bow.png-66ede858269df901b1edbacf31a7a35d.ctex"]
+source_file="res://sprites/frota/navio_sonar.png"
+dest_files=["res://.godot/imported/navio_sonar.png-d97c7decab39b6a1fee3d32f836a5073.ctex"]
 
 [params]
 
