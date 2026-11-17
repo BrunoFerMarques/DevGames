@@ -20,13 +20,13 @@ var magazine: int
 var perk: Perk
 var perk_text: String
 var price: int
-## Sprites de sprites/frota/, na ordem em que o card monta o navio.
-var parts: Array[StringName]
-var tint: Color
+## Nome do sprite em sprites/frota/ (<sprite>.png e a folha <sprite>_mods.png
+## com as camadas de armamento/melhoria; ver ShipView).
+var sprite: String
 
 func _init(p_id: StringName, p_name: String, p_kind: PlayerShip.Kind, p_tonnage: int,
 		p_magazine: int, p_perk: Perk, p_perk_text: String, p_price: int,
-		p_parts: Array[StringName], p_tint: Color = Color.WHITE) -> void:
+		p_sprite: String) -> void:
 	id = p_id
 	display_name = p_name
 	kind = p_kind
@@ -35,8 +35,7 @@ func _init(p_id: StringName, p_name: String, p_kind: PlayerShip.Kind, p_tonnage:
 	perk = p_perk
 	perk_text = p_perk_text
 	price = p_price
-	parts = p_parts
-	tint = p_tint
+	sprite = p_sprite
 
 ## Venda devolve metade do preco.
 func sell_price() -> int:
@@ -47,10 +46,13 @@ func summary() -> String:
 	var load_text := "Pente %d" % magazine if kind == PlayerShip.Kind.SHOT else "Sonar %d" % magazine
 	return "%s · %d %s" % [load_text, tonnage, "vaga" if tonnage == 1 else "vagas"]
 
+func texture() -> Texture2D:
+	return load("res://sprites/frota/%s.png" % sprite)
+
+func mods_texture() -> Texture2D:
+	return load("res://sprites/frota/%s_mods.png" % sprite)
+
 func build() -> PlayerShip:
-	var segs: Array[Texture2D] = []
-	for part in parts:
-		segs.append(load("res://sprites/frota/%s.png" % part))
-	var ship := PlayerShip.new(id, display_name, kind, segs, magazine)
+	var ship := PlayerShip.new(id, display_name, kind, magazine)
 	ship.ship_class = self
 	return ship

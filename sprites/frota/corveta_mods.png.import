@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://c83641hho3o15"
-path="res://.godot/imported/stern.png-7aaa8b37d041b246ccf1ad64e23a0a68.ctex"
+uid="uid://d1koeflsjgr1q"
+path="res://.godot/imported/corveta_mods.png-8400c324c75d461b163fad0f4a19e4cd.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://sprites/frota/stern.png"
-dest_files=["res://.godot/imported/stern.png-7aaa8b37d041b246ccf1ad64e23a0a68.ctex"]
+source_file="res://sprites/frota/corveta_mods.png"
+dest_files=["res://.godot/imported/corveta_mods.png-8400c324c75d461b163fad0f4a19e4cd.ctex"]
 
 [params]
 
