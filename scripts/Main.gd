@@ -14,6 +14,7 @@ const LAST_SHOT_DELAY := 0.6   # explosao/respingo do ultimo tiro duram ~0.45s
 @onready var fleet_bar: FleetBar = $FleetBar
 @onready var admiral_bar: AdmiralBar = $AdmiralBar
 @onready var hud: Hud = $Hud
+@onready var enemy_fleet: EnemyFleetPanel = $EnemyFleet
 @onready var shop: Shop = $Shop
 @onready var level_map: LevelMap = $LevelMap
 @onready var game_over: GameOver = $GameOver
@@ -34,6 +35,7 @@ func _ready() -> void:
 
 	fleet_bar.bind(board)
 	hud.bind(board)
+	enemy_fleet.bind(board)
 	shot_fx.fleet_bar = fleet_bar
 	board.shot_fx = shot_fx
 	streak_glow.bind(board)
@@ -49,7 +51,7 @@ func _ready() -> void:
 	start_screen.play.connect(_on_start_play)
 	start_screen.resume.connect(_on_resume_checkpoint)
 	start_screen.tutorial.connect(_on_start_tutorial)
-	tutorial.bind(shop, board, fleet_bar, hud, level_map)
+	tutorial.bind(shop, board, fleet_bar, hud, level_map, enemy_fleet)
 	tutorial.finished.connect(_on_tutorial_finished)
 	tutorial.screen_requested.connect(_on_tutorial_screen)
 	victory.continue_run.connect(func():
@@ -263,4 +265,5 @@ func _set_board_visible(v: bool) -> void:
 	board.visible = v
 	fleet_bar.visible = v
 	hud.visible = v
+	enemy_fleet.visible = v
 	streak_glow.visible = v
