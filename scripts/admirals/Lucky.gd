@@ -6,6 +6,7 @@ func _init() -> void:
 	id = &"lucky"
 	display_name = "Sortudo"
 	description = "15% de chance de dobrar os chips num acerto."
+	portrait = preload("res://sprites/almirantes/sortudo.png")
 
 func on_shot(ctx: Dictionary) -> void:
 	if ctx.get("is_hit", false) and randf() < 0.15:

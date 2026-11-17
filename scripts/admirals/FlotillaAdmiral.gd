@@ -10,6 +10,7 @@ func _init() -> void:
 	id = &"flotilla"
 	display_name = "Almirante da Flotilha"
 	description = "+%d vaga na doca e navios de 1 vaga levam +%d tiro no pente." % [EXTRA_DOCK, EXTRA_MAGAZINE]
+	portrait = preload("res://sprites/almirantes/almirante_flotilha.png")
 
 func modify_dock(n: int) -> int:
 	return n + EXTRA_DOCK
