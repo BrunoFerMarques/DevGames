@@ -1,8 +1,8 @@
 extends Control
 class_name Shop
-## Loja antes de cada rodada (inclusive a 1a). Secoes fixas na tela:
-## topo = rodada/dinheiro; esquerda em cima = abas Melhorias (melhorias e
-## armamento) e Estaleiro (navios novos); esquerda embaixo = almirantes;
+## Loja antes de cada rodada (inclusive a 1a). Secoes fixas na tela, sem abas:
+## topo = rodada, reroll (sorteia todas as ofertas) e dinheiro; esquerda, de
+## cima pra baixo = almirantes, melhorias/armamento e estaleiro (navios novos);
 ## direita = sua frota (tiros da rodada, venda de navio, vagas da doca) + Zarpar.
 ## A coluna da quina esquerda fica livre pra AdmiralBar (almirantes que o
 ## jogador ja tem; clicar vende). Nao troca de cena, so fica visivel/invisivel.
@@ -18,13 +18,16 @@ const RED := Color("#e43c4f")
 
 const DIM := Color(0.6, 0.63, 0.68, 1)
 const GOLD := Color("#f3c44b")
+const TEAL := Color("#2fbfb0")
+## Fontes das cartas: tres faixas de ofertas dividem a altura da coluna.
+const CARD_TITLE_SIZE := 17
+const CARD_TEXT_SIZE := 15
 
 @onready var round_info: Label = $TopBar/HBox/RoundInfo
 @onready var money_label: Label = $TopBar/HBox/Money
 @onready var upgrade_items: HBoxContainer = $Upgrades/VBox/Items
-@onready var reroll_btn: Button = $Upgrades/VBox/Header/Reroll
-@onready var tab_upgrades: Button = $Upgrades/VBox/Header/TabUpgrades
-@onready var tab_shipyard: Button = $Upgrades/VBox/Header/TabShipyard
+@onready var reroll_btn: Button = $TopBar/HBox/Reroll
+@onready var ship_items: HBoxContainer = $Shipyard/VBox/Items
 @onready var admiral_items: HBoxContainer = $Admirals/VBox/Items
 @onready var admiral_count: Label = $Admirals/VBox/Header/Count
 @onready var dock_label: Label = $Shots/VBox/Header/Dock
@@ -40,17 +43,11 @@ var _admiral_offers: Array[Effect] = []
 var _upgrade_offers: Array[ShipUpgradeDef] = []
 var _shot_offers: Array[ShotTypeDef] = []
 var _ship_offers: Array[ShipClassDef] = []
-var _shipyard_tab: bool = false
 
 func _ready() -> void:
 	reroll_btn.pressed.connect(_on_reroll)
 	load_all_btn.pressed.connect(_load_all)
 	continue_btn.pressed.connect(func(): closed.emit())
-	var tabs := ButtonGroup.new()
-	tab_upgrades.button_group = tabs
-	tab_shipyard.button_group = tabs
-	tab_upgrades.pressed.connect(func(): _set_tab(false))
-	tab_shipyard.pressed.connect(func(): _set_tab(true))
 	for sig in [Game.admirals_changed, Game.ships_changed]:
 		sig.connect(func():
 			if visible:
@@ -65,11 +62,6 @@ func _ready() -> void:
 func open() -> void:
 	_reroll_cost = REROLL_BASE_COST
 	_roll_offers()
-	_set_tab(false)
-
-func _set_tab(shipyard: bool) -> void:
-	_shipyard_tab = shipyard
-	(tab_shipyard if shipyard else tab_upgrades).button_pressed = true
 	_refresh()
 
 func _roll_offers() -> void:
@@ -255,22 +247,21 @@ func _refresh() -> void:
 	reroll_btn.disabled = Game.money < _reroll_cost
 
 	_clear(upgrade_items)
-	if _shipyard_tab:
-		for def in _ship_offers:
-			var full := not Game.has_dock_room(def)
-			var card := _make_item_card(def.display_name, "%s\n%s" % [def.summary(), def.perk_text],
-				def.price, func(): _buy_ship(def), "doca cheia" if full else "")
-			if full:
-				card.tooltip_text = "Venda um navio ($) ou contrate um almirante de estaleiro."
-			upgrade_items.add_child(card)
-	else:
-		for up in _upgrade_offers:
-			var title := ("SONAR · " + up.display_name) if up.for_sonar() else up.display_name
-			upgrade_items.add_child(_make_item_card(title, up.description, _upgrade_price(),
-				func(): _buy_upgrade(up)))
-		for st in _shot_offers:
-			upgrade_items.add_child(_make_item_card(st.display_name, st.description, st.price,
-				func(): _buy_shot_type(st)))
+	for up in _upgrade_offers:
+		upgrade_items.add_child(_make_item_card(up.display_name, up.description, _upgrade_price(),
+			func(): _buy_upgrade(up), "", "SONAR" if up.for_sonar() else "MELHORIA"))
+	for st in _shot_offers:
+		upgrade_items.add_child(_make_item_card(st.display_name, st.description, st.price,
+			func(): _buy_shot_type(st), "", "ARMAMENTO"))
+
+	_clear(ship_items)
+	for def in _ship_offers:
+		var full := not Game.has_dock_room(def)
+		var card := _make_item_card(def.display_name, "%s\n%s" % [def.summary(), def.perk_text],
+			def.price, func(): _buy_ship(def), "doca cheia" if full else "")
+		if full:
+			card.tooltip_text = "Venda um navio ($) ou contrate um almirante de estaleiro."
+		ship_items.add_child(card)
 
 	var fleet_full: bool = Game.admirals.size() >= Game.MAX_ADMIRALS
 	admiral_count.text = "%d/%d" % [Game.admirals.size(), Game.MAX_ADMIRALS]
@@ -360,20 +351,32 @@ func _small_button(text: String) -> Button:
 
 ## Melhoria/armamento/navio: carta vertical compacta (titulo, descricao, preco).
 ## `blocked` (ex.: "doca cheia") trava a carta e aparece no lugar do preco.
+## Carta de oferta: titulo, texto e rodape com preco (e o tipo, quando a
+## faixa mistura melhoria/sonar/armamento).
 func _make_item_card(title: String, desc: String, price: int, on_buy: Callable,
-		blocked: String = "") -> Button:
+		blocked: String = "", tag: String = "") -> Button:
 	var btn := Button.new()
 	btn.custom_minimum_size = Vector2(196, 0)
 	btn.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	btn.disabled = blocked != "" or Game.money < price
 	btn.pressed.connect(on_buy)
 	var box := _card_box(btn)
-	box.add_child(_card_label(title, GOLD, HORIZONTAL_ALIGNMENT_CENTER))
-	var desc_lbl := _card_label(desc, Color.WHITE, HORIZONTAL_ALIGNMENT_LEFT)
+	box.add_child(_card_label(title, GOLD, HORIZONTAL_ALIGNMENT_LEFT, CARD_TITLE_SIZE))
+	var desc_lbl := _card_label(desc, Color.WHITE, HORIZONTAL_ALIGNMENT_LEFT, CARD_TEXT_SIZE)
 	desc_lbl.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	box.add_child(desc_lbl)
-	box.add_child(_card_label(blocked if blocked != "" else "$%d" % price,
-		RED if blocked != "" else GOLD, HORIZONTAL_ALIGNMENT_CENTER))
+	var foot := HBoxContainer.new()
+	foot.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	box.add_child(foot)
+	var price_lbl := _card_label(blocked if blocked != "" else "$%d" % price,
+		RED if blocked != "" else GOLD, HORIZONTAL_ALIGNMENT_LEFT, CARD_TITLE_SIZE)
+	price_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	foot.add_child(price_lbl)
+	if tag != "":
+		var tag_lbl := _card_label(tag, TEAL if tag == "SONAR" else DIM, HORIZONTAL_ALIGNMENT_RIGHT, 14)
+		tag_lbl.autowrap_mode = TextServer.AUTOWRAP_OFF   # sem largura propria, quebraria letra a letra
+		tag_lbl.size_flags_vertical = Control.SIZE_SHRINK_END
+		foot.add_child(tag_lbl)
 	_dim_if_disabled(btn)
 	return btn
 
@@ -409,11 +412,12 @@ func _make_admiral_card(adm: Effect, fleet_full: bool) -> Control:
 	box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_child(box)
-	box.add_child(_card_label(adm.display_name, GOLD, HORIZONTAL_ALIGNMENT_LEFT))
-	var desc_lbl := _card_label(adm.description, Color.WHITE, HORIZONTAL_ALIGNMENT_LEFT)
+	box.add_child(_card_label(adm.display_name, GOLD, HORIZONTAL_ALIGNMENT_LEFT, CARD_TITLE_SIZE))
+	var desc_lbl := _card_label(adm.description, Color.WHITE, HORIZONTAL_ALIGNMENT_LEFT, CARD_TEXT_SIZE)
 	desc_lbl.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	box.add_child(desc_lbl)
-	box.add_child(_card_label("frota cheia" if fleet_full else "$%d" % _admiral_price(), GOLD, HORIZONTAL_ALIGNMENT_LEFT))
+	box.add_child(_card_label("frota cheia" if fleet_full else "$%d" % _admiral_price(), GOLD,
+		HORIZONTAL_ALIGNMENT_LEFT, CARD_TITLE_SIZE))
 	return btn
 
 func _card_box(btn: Button) -> VBoxContainer:
@@ -423,9 +427,11 @@ func _card_box(btn: Button) -> VBoxContainer:
 	box.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT, Control.PRESET_MODE_MINSIZE, 8)
 	return box
 
-func _card_label(text: String, color: Color, align: HorizontalAlignment) -> Label:
+func _card_label(text: String, color: Color, align: HorizontalAlignment, font_size: int = 0) -> Label:
 	var lbl := Label.new()
 	lbl.text = text
+	if font_size > 0:
+		lbl.add_theme_font_size_override("font_size", font_size)
 	lbl.horizontal_alignment = align
 	lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	lbl.add_theme_color_override("font_color", color)

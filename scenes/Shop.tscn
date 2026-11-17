@@ -49,60 +49,26 @@ size_flags_horizontal = 3
 text = "Próxima rodada"
 vertical_alignment = 1
 
+[node name="Reroll" type="Button" parent="TopBar/HBox"]
+layout_mode = 2
+text = "Reroll ($2)"
+
 [node name="Money" type="Label" parent="TopBar/HBox"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.952941, 0.768627, 0.294118, 1)
 theme_override_font_sizes/font_size = 30
 text = "$0"
 
-[node name="Upgrades" type="PanelContainer" parent="."]
+[node name="Admirals" type="PanelContainer" parent="."]
 layout_mode = 0
 offset_left = 128.0
 offset_top = 72.0
 offset_right = 764.0
-offset_bottom = 328.0
-
-[node name="VBox" type="VBoxContainer" parent="Upgrades"]
-layout_mode = 2
-theme_override_constants/separation = 8
-
-[node name="Header" type="HBoxContainer" parent="Upgrades/VBox"]
-layout_mode = 2
-
-[node name="TabUpgrades" type="Button" parent="Upgrades/VBox/Header"]
-layout_mode = 2
-toggle_mode = true
-button_pressed = true
-text = "MELHORIAS"
-
-[node name="TabShipyard" type="Button" parent="Upgrades/VBox/Header"]
-layout_mode = 2
-toggle_mode = true
-text = "ESTALEIRO"
-
-[node name="Spacer" type="Control" parent="Upgrades/VBox/Header"]
-layout_mode = 2
-size_flags_horizontal = 3
-
-[node name="Reroll" type="Button" parent="Upgrades/VBox/Header"]
-layout_mode = 2
-text = "Reroll (2)"
-
-[node name="Items" type="HBoxContainer" parent="Upgrades/VBox"]
-layout_mode = 2
-size_flags_vertical = 3
-theme_override_constants/separation = 12
-
-[node name="Admirals" type="PanelContainer" parent="."]
-layout_mode = 0
-offset_left = 128.0
-offset_top = 340.0
-offset_right = 764.0
-offset_bottom = 636.0
+offset_bottom = 242.0
 
 [node name="VBox" type="VBoxContainer" parent="Admirals"]
 layout_mode = 2
-theme_override_constants/separation = 8
+theme_override_constants/separation = 6
 
 [node name="Header" type="HBoxContainer" parent="Admirals/VBox"]
 layout_mode = 2
@@ -118,6 +84,63 @@ layout_mode = 2
 text = "0/5"
 
 [node name="Items" type="HBoxContainer" parent="Admirals/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 12
+
+[node name="Upgrades" type="PanelContainer" parent="."]
+layout_mode = 0
+offset_left = 128.0
+offset_top = 248.0
+offset_right = 764.0
+offset_bottom = 440.0
+
+[node name="VBox" type="VBoxContainer" parent="Upgrades"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="Header" type="HBoxContainer" parent="Upgrades/VBox"]
+layout_mode = 2
+
+[node name="Title" type="Label" parent="Upgrades/VBox/Header"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.952941, 0.768627, 0.294118, 1)
+text = "MELHORIAS E ARMAMENTOS"
+
+[node name="Items" type="HBoxContainer" parent="Upgrades/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 12
+
+[node name="Shipyard" type="PanelContainer" parent="."]
+layout_mode = 0
+offset_left = 128.0
+offset_top = 446.0
+offset_right = 764.0
+offset_bottom = 636.0
+
+[node name="VBox" type="VBoxContainer" parent="Shipyard"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="Header" type="HBoxContainer" parent="Shipyard/VBox"]
+layout_mode = 2
+
+[node name="Title" type="Label" parent="Shipyard/VBox/Header"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.952941, 0.768627, 0.294118, 1)
+text = "ESTALEIRO"
+
+[node name="Hint" type="Label" parent="Shipyard/VBox/Header"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.6, 0.63, 0.68, 1)
+theme_override_font_sizes/font_size = 16
+text = "vender: botão $ na sua frota"
+vertical_alignment = 1
+
+[node name="Items" type="HBoxContainer" parent="Shipyard/VBox"]
 layout_mode = 2
 size_flags_vertical = 3
 theme_override_constants/separation = 12
