@@ -132,7 +132,7 @@ func _build_steps() -> Array[Dictionary]:
 			"text": "Encouraçado e Cruzador carregados. Clique em Zarpar."},
 		# --- Batalha ---
 		{"on": &"next", "rect": func() -> Rect2: return _enemy_fleet.get_global_rect(),
-			"text": "Esta é a frota inimiga. BLIND = casco blindado. $4 = saque pago ao afundar o Cargueiro (quanto menor o navio, mais paga). E tem 1 MINA escondida na grade."},
+			"text": "Esta é a frota inimiga. BLIND marca casco blindado e $4 é o saque que o Cargueiro paga ao afundar (quanto menor o navio, mais paga). E tem 1 MINA escondida na grade."},
 		{"on": &"next", "rect": _grid_rect,
 			"text": "Os números em volta da grade dizem quantas casas de navio faltam em cada linha e coluna. Navios nunca se encostam, nem na diagonal."},
 		{"on": &"select", "rect": func() -> Rect2: return _fleet_bar.card_rect(battleship),
@@ -157,7 +157,7 @@ func _build_steps() -> Array[Dictionary]:
 			"check": func() -> bool: return sonar_ship.charges < sonar_ship.round_cap,
 			"text": "O sonar revela 3 casas da linha. Use em C4."},
 		{"on": &"next", "rect": _cells(Vector2i(1, 3), Vector2i(3, 3)),
-			"text": "Teal = tem navio. Pontilhado = só água. Em B4 achou a MINA: tiro nela gasta 1 tiro extra e zera o combo. Submarinos (SUB) passam batido pelo sonar."},
+			"text": "O círculo que pulsa marca navio e o pontilhado marca água. Em B4 o sonar achou a MINA: tiro nela gasta 1 tiro extra e zera o combo. Submarinos (SUB) passam batido pelo sonar."},
 		{"on": &"select", "rect": func() -> Rect2: return _fleet_bar.card_rect(cruiser),
 			"check": func() -> bool: return _board.selected_ship == cruiser,
 			"text": "O Encouraçado esvaziou. Cada classe de navio tem uma vantagem: o Cruzador dá +1 de multiplicador no tiro que afunda. Clique no Cruzador."},
