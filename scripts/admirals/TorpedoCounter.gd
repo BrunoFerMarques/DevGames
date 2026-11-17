@@ -6,6 +6,7 @@ func _init() -> void:
 	id = &"torpedo_counter"
 	display_name = "Contra-torpedeiro"
 	description = "Dobra os chips do tiro que afunda um navio."
+	portrait = preload("res://sprites/almirantes/contra_torpedeiro.png")
 
 func on_shot(ctx: Dictionary) -> void:
 	if ctx.get("sank", false):

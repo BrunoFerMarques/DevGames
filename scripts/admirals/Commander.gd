@@ -6,6 +6,7 @@ func _init() -> void:
 	id = &"commander"
 	display_name = "Comandante"
 	description = "+2 de mult em todo acerto."
+	portrait = preload("res://sprites/almirantes/comandante.png")
 
 func on_shot(ctx: Dictionary) -> void:
 	if ctx.get("is_hit", false):
