@@ -2,11 +2,12 @@ extends VBoxContainer
 class_name AdmiralBar
 ## Coluna dos Almirantes (coringas) que o jogador possui, encostada na
 ## quina esquerda da tela (estilo Balatro), fora da area do tabuleiro.
-## Sempre visivel (jogo e loja). Clicar no card: fora da loja mostra a
-## habilidade num popup; na loja (set_sellable) pede confirmacao de venda -
-## Main liga/desliga via set_sellable. Almirantes sem retrato proprio mostram
-## o nome no lugar do retrato.
+## Sempre visivel (jogo e loja). Tooltip e clique mostram nome + habilidade;
+## na loja (set_sellable, Main liga/desliga) o painel do clique tambem tem
+## "Vender" e "Cancelar". Almirantes sem retrato proprio mostram o nome no
+## lugar do retrato.
 
+## Jogador confirmou a venda no painel do almirante (Main vende).
 signal sell_requested(adm: Effect)
 
 # Retratos sao arte 32x32 em 4x (128px): 64px = 2x exato, pixel nitido.
@@ -54,12 +55,10 @@ func _make_card(adm: Effect) -> Control:
 	btn.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	for slot in ["normal", "hover", "pressed", "focus", "disabled"]:
 		btn.add_theme_stylebox_override(slot, sb)
+	btn.pressed.connect(func(): _show_info(adm, btn))
+	btn.tooltip_text = "%s\n%s" % [adm.display_name, adm.description]
 	if sellable:
-		btn.pressed.connect(func(): sell_requested.emit(adm))
-		btn.tooltip_text = "%s\n\nClique para vender por %d" % [adm.display_name, Game.ADMIRAL_SELL_REFUND]
-	else:
-		btn.pressed.connect(func(): _show_info(adm))
-		btn.tooltip_text = adm.display_name
+		btn.tooltip_text += "\n\nClique para vender por $%d" % Game.ADMIRAL_SELL_REFUND
 
 	# Card estilo Balatro: so o retrato; nome fica no tooltip/popup.
 	# Sem retrato proprio, o nome ocupa o lugar dele no mesmo tamanho.
@@ -88,11 +87,14 @@ func _make_card(adm: Effect) -> Control:
 	return btn
 
 ## Popup com nome + descricao da habilidade - clique fora fecha sozinho.
-func _show_info(adm: Effect) -> void:
+## Na loja ganha os botoes de vender (venda e' definitiva) e cancelar.
+## Abre colado a direita do card.
+func _show_info(adm: Effect, card: Control) -> void:
 	var popup := PopupPanel.new()
 	add_child(popup)
 
 	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 8)
 	popup.add_child(box)
 
 	var title_lbl := Label.new()
@@ -106,5 +108,25 @@ func _show_info(adm: Effect) -> void:
 	desc_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD
 	box.add_child(desc_lbl)
 
+	if sellable:
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 8)
+		box.add_child(row)
+		var sell_btn := Button.new()
+		sell_btn.text = "Vender por $%d" % Game.ADMIRAL_SELL_REFUND
+		sell_btn.add_theme_color_override("font_color", Color("#e43c4f"))
+		sell_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		sell_btn.pressed.connect(func():
+			popup.hide()
+			sell_requested.emit(adm)
+		)
+		row.add_child(sell_btn)
+		var cancel_btn := Button.new()
+		cancel_btn.text = "Cancelar"
+		cancel_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		cancel_btn.pressed.connect(popup.hide)
+		row.add_child(cancel_btn)
+
 	popup.popup_hide.connect(popup.queue_free)
-	popup.popup(Rect2i(get_global_mouse_position(), Vector2i(240, 0)))
+	var r := card.get_global_rect()
+	popup.popup(Rect2i(Vector2i(int(r.end.x) + 8, int(r.position.y)), Vector2i(240, 0)))
