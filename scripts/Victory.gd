@@ -21,7 +21,7 @@ func _ready() -> void:
 
 func open() -> void:
 	visible = true
-	stats_label.text = "Chefe do Ante %d vencido!
+	stats_label.text = "Chefe do Setor %d vencido!
 %s" % [
 		Game.FINAL_ANTE, DifficultyCatalog.title(Game.difficulty)]
 	unlock_label.visible = Game.unlocked_now

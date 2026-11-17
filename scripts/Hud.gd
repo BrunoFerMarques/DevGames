@@ -27,7 +27,8 @@ const HEAT: Array[Color] = [Color("#f3c44b"), Color("#f08a3c"), Color("#e4573c")
 const FIRE_STREAK := 4        # a partir daqui o mult pega fogo (+1 chama por acerto)
 const MAX_FLAMES := 3
 const COUNT_TIME := 0.35      # pontos contando ate o valor novo
-const TRACK_LEFT := 96.0      # espaco do "ANTE n" antes das paradas
+const TRACK_LEFT := 96.0      # inicio minimo das paradas (depois do "SETOR n")
+const TRACK_PAD := 24.0       # do fim do nome ate o centro da 1a parada (raio + aro)
 const TRACK_Y := 14.0
 const STAT_BG := Color("#12365f")
 const DANGER_ORANGE := Color("#f08a3c")
@@ -107,9 +108,12 @@ func _on_round_started() -> void:
 ## Rota especial (perigo/tesouro) escrita embaixo.
 func _draw_track() -> void:
 	var font := get_theme_default_font()
-	track.draw_string(font, Vector2(0, TRACK_Y + 7), "ANTE %d" % Game.ante, HORIZONTAL_ALIGNMENT_LEFT, -1, 20, GOLD)
-	var gap := (track.size.x - TRACK_LEFT - 16.0) / (Game.ROUNDS_PER_ANTE - 1)
-	var first := Vector2(TRACK_LEFT, TRACK_Y)
+	var label := "SETOR %d" % Game.ante
+	track.draw_string(font, Vector2(0, TRACK_Y + 7), label, HORIZONTAL_ALIGNMENT_LEFT, -1, 20, GOLD)
+	# Paradas comecam depois do nome ("SETOR 10" no modo sem fim e' mais largo).
+	var left := maxf(TRACK_LEFT, font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, 20).x + TRACK_PAD)
+	var gap := (track.size.x - left - 16.0) / (Game.ROUNDS_PER_ANTE - 1)
+	var first := Vector2(left, TRACK_Y)
 	track.draw_line(first, first + Vector2(gap * (Game.ROUNDS_PER_ANTE - 1), 0), FLEET_DIM, 3.0)
 	for i in Game.ROUNDS_PER_ANTE:
 		var p := first + Vector2(gap * i, 0)

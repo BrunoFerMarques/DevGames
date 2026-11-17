@@ -74,10 +74,10 @@ func open() -> void:
 	tutorial_btn.text = "Treino" if Game.tutorial_done else "Treino (recomendado)"
 	resume_btn.visible = Game.has_checkpoint()
 	if resume_btn.visible:
-		resume_btn.text = "Continuar (Ante %d)" % Game.checkpoint["ante"]
+		resume_btn.text = "Continuar (Setor %d)" % Game.checkpoint["ante"]
 	var r := Game.ROUNDS_PER_ANTE
 	record_label.visible = Game.best_index > 0
-	record_label.text = "Recorde: Ante %d · Rodada %d" % [Game.best_index / r + 1, Game.best_index % r + 1]
+	record_label.text = "Recorde: Setor %d · Rodada %d" % [Game.best_index / r + 1, Game.best_index % r + 1]
 
 	_kill_tweens()
 	_fit_stage()
@@ -140,5 +140,5 @@ func _refresh_difficulty() -> void:
 	var text := DifficultyCatalog.rule_text(level)
 	if level == Game.unlocked_difficulty and level < DifficultyCatalog.count():
 		text += "
-Vença o chefe do Ante %d para liberar o Nível %d." % [Game.FINAL_ANTE, level + 1]
+Vença o chefe do Setor %d para liberar o Nível %d." % [Game.FINAL_ANTE, level + 1]
 	diff_rule.text = text

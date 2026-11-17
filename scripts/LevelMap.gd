@@ -135,7 +135,7 @@ func _continue() -> void:
 
 func _refresh_info() -> void:
 	# Ante x/8 ate vencer a run; depois so o numero (modo sem fim).
-	var ante_text := "Ante %d/%d" % [Game.ante, Game.FINAL_ANTE] if Game.ante <= Game.FINAL_ANTE else "Ante %d" % Game.ante
+	var ante_text := "Setor %d/%d" % [Game.ante, Game.FINAL_ANTE] if Game.ante <= Game.FINAL_ANTE else "Setor %d" % Game.ante
 	var head := "Nível %d · %s · Rodada %d/%d" % [Game.difficulty, ante_text, Game.round_in_ante, R]
 	continue_btn.disabled = Game.needs_route_choice()
 	detail_label.remove_theme_color_override("font_color")
@@ -154,11 +154,11 @@ func _refresh_info() -> void:
 			detail_label.text = "%s: %s" % [Game.STOP_NAMES[kind], Game.STOP_DESCS[kind]]
 			if kind != Game.Stop.NORMAL:
 				detail_label.add_theme_color_override("font_color", _stop_color(kind))
-	record_label.text = "Recorde: Ante %d · Rodada %d" % [Game.best_index / R + 1, Game.best_index % R + 1]
+	record_label.text = "Recorde: Setor %d · Rodada %d" % [Game.best_index / R + 1, Game.best_index % R + 1]
 	# Checkpoint so e' oferecido no comeco de uma run nova.
 	resume_btn.visible = Game.has_checkpoint() and Game.stage_index() == 0 and Game.route_log.is_empty()
 	if resume_btn.visible:
-		resume_btn.text = "Checkpoint: Ante %d" % Game.checkpoint["ante"]
+		resume_btn.text = "Checkpoint: Setor %d" % Game.checkpoint["ante"]
 
 # --- Geometria -----------------------------------------------------------------
 
@@ -267,7 +267,7 @@ func _draw_ante_headers(font: Font) -> void:
 		var first := _center(a * R + 1)
 		var last := _center(a * R + R)
 		var color := GOLD if _first_ante + a == Game.ante else DIM
-		_draw_text(font, Vector2((first.x + last.x) / 2.0, 24), "ANTE %d" % (_first_ante + a), LABEL_SIZE + 4, color)
+		_draw_text(font, Vector2((first.x + last.x) / 2.0, 24), "SETOR %d" % (_first_ante + a), LABEL_SIZE + 4, color)
 		if a > 0:
 			var x := (first.x + _center(a * R).x) / 2.0
 			chart.draw_dashed_line(Vector2(x, 8), Vector2(x, chart.size.y - 8), Color(DIM, 0.25), 2.0, 10.0)
