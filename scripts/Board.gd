@@ -99,11 +99,12 @@ func start_round() -> void:
 	_build_grid()
 	if Game.fixed_layout.is_empty():
 		_place_fleet(Game.enemy_fleet)
+		_place_mines(Game.mine_count)
 	else:
 		enemy_ships.clear()
 		for entry in Game.fixed_layout:
 			_put_ship(entry["def"], entry["body"], entry["horiz"])
-	_place_mines(Game.mine_count)
+		_put_mines(Game.fixed_mines)
 	_refresh_line_counts()
 	enemy_fleet_changed.emit()
 	_recalc_pools()
@@ -294,6 +295,15 @@ func _place_mines(n: int) -> void:
 	for i in mini(n, free.size()):
 		cells[free[i]].has_mine = true
 		mines_total += 1
+
+## Minas em casas escolhidas (treino), em vez de sorteadas.
+func _put_mines(coords: Array[Vector2i]) -> void:
+	mines_total = 0
+	mines_exploded = 0
+	for p in coords:
+		if cells.has(p) and not cells[p].has_ship:
+			cells[p].has_mine = true
+			mines_total += 1
 
 func is_sunk(ship: Dictionary) -> bool:
 	return int(ship["hits"]) >= int(ship["size"])

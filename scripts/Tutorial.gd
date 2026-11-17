@@ -5,8 +5,12 @@ class_name Tutorial
 ## sao barrados. Cada passo espera um evento do jogo (comprar tiro, zarpar,
 ## selecionar navio, atirar, usar sonar) ou o botao Proximo. O tabuleiro do
 ## treino e' fixo (Game.setup_tutorial), entao o roteiro sempre bate.
+## Depois da rodada, um tour so de leitura pela loja e pela carta nautica
+## (passo com "screen": Main troca a tela pedida).
 
 signal finished(play: bool)
+## Passo do tour pede outra tela: &"shop" ou &"map" (Main faz a troca).
+signal screen_requested(screen: StringName)
 
 const DIM := Color(0.02, 0.06, 0.12, 0.72)
 const FRAME := Color("#f3c44b")
@@ -19,6 +23,7 @@ var _shop: Shop
 var _board: Board
 var _fleet_bar: FleetBar
 var _hud: Hud
+var _map: LevelMap
 
 var _steps: Array[Dictionary] = []
 var _i: int = -1
@@ -78,11 +83,12 @@ func _build_bubble() -> void:
 ## Main liga uma vez; os eventos so contam enquanto o treino esta rodando.
 ## Deferred: o estado (tiro comprado, carga, casa revelada) so assenta depois
 ## do sinal.
-func bind(shop: Shop, board: Board, fleet_bar: FleetBar, hud: Hud) -> void:
+func bind(shop: Shop, board: Board, fleet_bar: FleetBar, hud: Hud, map: LevelMap) -> void:
 	_shop = shop
 	_board = board
 	_fleet_bar = fleet_bar
 	_hud = hud
+	_map = map
 	Game.money_changed.connect(func(_m): _event.call_deferred(&"money"))
 	board.round_started.connect(func(): _event.call_deferred(&"round"))
 	board.ship_selected.connect(func(_s): _event.call_deferred(&"select"))
@@ -105,21 +111,25 @@ func is_running() -> bool:
 # --- Roteiro -------------------------------------------------------------------
 
 ## { text, on: evento que avanca, rect: Callable -> Rect2 global (buraco),
-##   check: Callable -> bool (opcional, condicao extra pro evento contar) }
+##   check: Callable -> bool (opcional, condicao extra pro evento contar),
+##   screen: tela que o Main abre ao entrar no passo (opcional) }
 ## on = next/won/final: passo de leitura (o buraco nao recebe clique).
 func _build_steps() -> Array[Dictionary]:
-	var battleship := _ship_of(PlayerShip.Kind.SHOT)
-	var sonar_ship := _ship_of(PlayerShip.Kind.SONAR)
+	var battleship := _ship_of(&"battleship")
+	var cruiser := _ship_of(&"cruiser")
+	var sonar_ship := _ship_of(&"sonar_ship")
 	var steps: Array[Dictionary] = [
+		# --- Loja: carga ---
 		{"on": &"next",
-			"text": "Bem-vindo ao treino, almirante! Em 1 minuto você aprende o básico."},
-		{"on": &"money", "rect": func() -> Rect2: return _shop_row(0),
-			"check": func() -> bool: return battleship.bought_shots >= battleship.max_charges,
-			"text": "Seus navios saem VAZIOS: antes de cada rodada você compra os tiros. Aperte + até carregar 4 tiros no Encouraçado ($1 cada)."},
+			"text": "Bem-vindo ao treino, almirante! Em poucos minutos você aprende a batalha, a loja e o mapa."},
+		{"on": &"money", "rect": func() -> Rect2: return _shop.load_all_btn.get_global_rect(),
+			"check": func() -> bool: return Game.money < Game.SHOT_PRICE,
+			"text": "Seus navios saem VAZIOS: antes de cada rodada você compra os tiros, $1 cada (o + e o - carregam um navio por vez). Clique em Carregar tudo."},
 		{"on": &"round", "rect": func() -> Rect2: return _shop.continue_btn.get_global_rect(),
-			"text": "Tudo carregado. Clique em Zarpar."},
+			"text": "Encouraçado e Cruzador carregados. Clique em Zarpar."},
+		# --- Batalha ---
 		{"on": &"next", "rect": func() -> Rect2: return _hud.fleet_box.get_global_rect(),
-			"text": "Esta é a frota inimiga. O Cargueiro paga $4 de saque ao afundar: quanto menor o navio, mais ele paga."},
+			"text": "Esta é a frota inimiga. BLIND = casco blindado. $4 = saque pago ao afundar o Cargueiro (quanto menor o navio, mais paga). E tem 1 MINA escondida na grade."},
 		{"on": &"next", "rect": _grid_rect,
 			"text": "Os números em volta da grade dizem quantas casas de navio faltam em cada linha e coluna. Navios nunca se encostam, nem na diagonal."},
 		{"on": &"select", "rect": func() -> Rect2: return _fleet_bar.card_rect(battleship),
@@ -127,45 +137,59 @@ func _build_steps() -> Array[Dictionary]:
 			"text": "Clique no Encouraçado para armar um tiro."},
 		{"on": &"shot", "rect": _cell(1, 1),
 			"text": "Atire na casa B2."},
+		{"on": &"shot", "rect": _cell(1, 1),
+			"text": "BLINDADO! O 1º tiro só amassa a casa: não pontua, mas também não quebra o combo. Atire de novo em B2."},
 		{"on": &"next", "rect": func() -> Rect2: return _hud.get_node("VBox/Calc").get_global_rect(),
-			"text": "Acertou! Cada tiro vale fichas × multiplicador."},
+			"text": "Acertou! Cada tiro vale fichas × multiplicador. As casas na diagonal viraram água, já que navios não se encostam."},
 		{"on": &"shot", "rect": _cell(2, 1),
-			"text": "Acertos seguidos fazem COMBO e sobem o multiplicador. Atire em C2, logo ao lado."},
+			"text": "Acertos seguidos fazem COMBO e sobem o multiplicador; tiro na água zera. Atire em C2, logo ao lado."},
+		{"on": &"shot", "rect": _cell(2, 1),
+			"text": "Amassou a blindagem de novo. Mais um em C2 afunda o navio!"},
 		{"on": &"next", "rect": _grid_rect,
-			"text": "Afundou! Navio afundado dá bônus de fichas, e a água em volta fica marcada sozinha."},
+			"text": "Afundou! Navio afundado dá bônus de fichas (blindado dá ainda mais) e a água em volta fica marcada sozinha."},
 		{"on": &"select", "rect": func() -> Rect2: return _fleet_bar.card_rect(sonar_ship),
 			"check": func() -> bool: return _board.selected_ship == sonar_ship,
 			"text": "Agora o sonar: ele não gasta tiro e recarrega quando você afunda um navio. Clique no Navio-sonar."},
-		{"on": &"sonar", "rect": _cell(3, 3),
+		{"on": &"sonar", "rect": _cell(2, 3),
 			"check": func() -> bool: return sonar_ship.charges < sonar_ship.round_cap,
-			"text": "O sonar revela 3 casas da linha. Use em D4."},
-		{"on": &"next", "rect": _cells(Vector2i(2, 3), Vector2i(4, 3)),
-			"text": "Teal = tem navio ali. Pontilhado = só água."},
-		{"on": &"select", "rect": func() -> Rect2: return _fleet_bar.card_rect(battleship),
-			"check": func() -> bool: return _board.selected_ship == battleship,
-			"text": "Arme o Encouraçado de novo."},
+			"text": "O sonar revela 3 casas da linha. Use em C4."},
+		{"on": &"next", "rect": _cells(Vector2i(1, 3), Vector2i(3, 3)),
+			"text": "Teal = tem navio. Pontilhado = só água. Em B4 achou a MINA: tiro nela gasta 1 tiro extra e zera o combo. Submarinos (SUB) passam batido pelo sonar."},
+		{"on": &"select", "rect": func() -> Rect2: return _fleet_bar.card_rect(cruiser),
+			"check": func() -> bool: return _board.selected_ship == cruiser,
+			"text": "O Encouraçado esvaziou. Cada classe de navio tem uma vantagem: o Cruzador dá +1 de multiplicador no tiro que afunda. Clique no Cruzador."},
 		{"on": &"shot", "rect": _cell(3, 3),
-			"text": "Atire onde o sonar achou o navio."},
+			"text": "Atire onde o sonar achou o navio, longe da mina."},
 		{"on": &"shot", "rect": _cell(3, 4),
 			"text": "O navio segue para baixo. Afunde em D5!"},
 		{"on": &"won",
 			"text": "Sem tiros, a rodada acaba e conta os pontos..."},
+		{"on": &"next", "rect": func() -> Rect2: return _hud.money_box.get_global_rect(),
+			"text": "Meta batida! A vitória paga $8, passar da meta paga um bônus e o Cargueiro deu $4 de saque. Se os tiros acabarem abaixo da meta, sua frota afunda: fim de jogo."},
+		# --- Tour da loja (so leitura) ---
+		{"on": &"next", "screen": &"shop",
+			"rect": func() -> Rect2: return (_shop.get_node("Admirals") as Control).get_global_rect(),
+			"text": "Entre as rodadas você passa na LOJA. ALMIRANTES são cartas com efeito na run inteira (até 5). Na loja, clique num almirante seu para vendê-lo."},
+		{"on": &"next", "rect": func() -> Rect2: return (_shop.get_node("Upgrades") as Control).get_global_rect(),
+			"text": "MELHORIAS fortalecem um navio. ARMAMENTOS trocam o tiro dele: Ogiva Perfurante fura blindagem, Torpedo corre a linha, Salva em Cruz acerta 5 casas. Reroll sorteia outras ofertas."},
+		{"on": &"next", "rect": func() -> Rect2: return _shop.tab_shipyard.get_global_rect(),
+			"text": "No ESTALEIRO você compra e vende navios. Cada navio ocupa vagas e a soma não pode passar da Doca."},
+		# --- Tour do mapa (so leitura) ---
+		{"on": &"next", "screen": &"map", "rect": func() -> Rect2: return _map.ante_rect(Game.ante),
+			"text": "Esta é a carta náutica. Cada ANTE tem 3 rodadas. Nas 2 primeiras você escolhe a rota: a segura (em cima) ou a especial (embaixo), Águas perigosas ou Rota do tesouro."},
+		{"on": &"next", "rect": func() -> Rect2: return _map.ante_rect(Game.ante),
+			"text": "A 3ª rodada é o CHEFE: meta maior e um desafio que muda as regras. Vencer o chefe salva um CHECKPOINT para tentar de novo se afundar."},
 		{"on": &"final",
-			"text": "Treino concluído: meta batida e +$4 de saque! Na campanha ainda tem mapa de rotas, almirantes, blindagem, minas e submarinos. Bons mares, almirante!"},
+			"text": "Treino concluído! Passar de 1,5× e 2× a meta dá estrelas e $ extra. Vença o chefe do Ante %d para vencer a run e liberar o próximo nível de dificuldade. Bons mares, almirante!" % Game.FINAL_ANTE},
 	]
 	return steps
 
-func _ship_of(kind: PlayerShip.Kind) -> PlayerShip:
+## Navio da frota inicial pela classe (Estaleiro: ShipClassCatalog).
+func _ship_of(class_id: StringName) -> PlayerShip:
 	for ship in Game.player_ships:
-		if ship.kind == kind:
+		if ship.ship_class and ship.ship_class.id == class_id:
 			return ship
 	return null
-
-## Linha do navio `i` (so navios de tiro) na coluna de tiros da loja.
-func _shop_row(i: int) -> Rect2:
-	if _shop.shot_rows.get_child_count() <= i:
-		return Rect2()
-	return (_shop.shot_rows.get_child(i) as Control).get_global_rect()
 
 func _grid_rect() -> Rect2:
 	return (_board.get_node("Margin/VBox/GridFrame") as Control).get_global_rect()
@@ -199,6 +223,8 @@ func _go(i: int) -> void:
 	var on: StringName = st["on"]
 	var final: bool = on == &"final"
 	_text.text = st["text"]
+	if st.has("screen"):
+		screen_requested.emit(st["screen"])
 	_next_btn.visible = on == &"next" or final
 	_next_btn.text = "Jogar campanha" if final else "Próximo"
 	_skip_btn.text = "Voltar ao menu" if final else "Pular treino"
@@ -252,7 +278,8 @@ func _place(c: Control, r: Rect2) -> void:
 	c.position = r.position
 	c.size = Vector2(maxf(r.size.x, 0.0), maxf(r.size.y, 0.0))
 
-## Balao embaixo do buraco; se nao couber, em cima; sem buraco, no centro.
+## Balao embaixo do buraco; se nao couber, em cima, e senao do lado; sem
+## buraco, no centro.
 func _place_bubble() -> void:
 	var bs := _bubble.get_combined_minimum_size()
 	_bubble.size = bs
@@ -262,9 +289,17 @@ func _place_bubble() -> void:
 		return
 	var below := _hole.end.y + GAP
 	var above := _hole.position.y - GAP - bs.y
-	var y := below if below + bs.y <= s.y - EDGE else maxf(EDGE, above)
 	var x := clampf(_hole.get_center().x - bs.x / 2.0, EDGE, s.x - bs.x - EDGE)
-	_bubble.position = Vector2(x, y)
+	if below + bs.y <= s.y - EDGE:
+		_bubble.position = Vector2(x, below)
+	elif above >= EDGE:
+		_bubble.position = Vector2(x, above)
+	else:
+		# Buraco alto demais (faixa de um ante na carta): balao do lado.
+		var y := clampf(_hole.get_center().y - bs.y / 2.0, EDGE, s.y - bs.y - EDGE)
+		var right := _hole.end.x + GAP
+		var side := right if right + bs.x <= s.x - EDGE else maxf(EDGE, _hole.position.x - GAP - bs.x)
+		_bubble.position = Vector2(side, y)
 
 func _draw_frame() -> void:
 	if not _hole.has_area():

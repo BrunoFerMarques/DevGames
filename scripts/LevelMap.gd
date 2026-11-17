@@ -162,6 +162,16 @@ func _refresh_info() -> void:
 
 # --- Geometria -----------------------------------------------------------------
 
+## Faixa do ante `a` na carta (rect global), entre as divisorias tracejadas;
+## o 1o da janela comeca na borda (porto/checkpoint). Tutorial destaca o ante.
+func ante_rect(a: int) -> Rect2:
+	var i := a - _first_ante
+	var left := 0.0 if i <= 0 else (_center(i * R + 1).x + _center(i * R).x) / 2.0
+	var right := chart.size.x
+	if i < ANTES_SHOWN - 1:
+		right = (_center((i + 1) * R + 1).x + _center((i + 1) * R).x) / 2.0
+	return Rect2(chart.global_position + Vector2(left, 0), Vector2(right - left, chart.size.y))
+
 func _cols() -> int:
 	return ANTES_SHOWN * R + 1
 
