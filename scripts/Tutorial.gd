@@ -24,6 +24,7 @@ var _board: Board
 var _fleet_bar: FleetBar
 var _hud: Hud
 var _map: LevelMap
+var _enemy_fleet: EnemyFleetPanel
 
 var _steps: Array[Dictionary] = []
 var _i: int = -1
@@ -83,12 +84,14 @@ func _build_bubble() -> void:
 ## Main liga uma vez; os eventos so contam enquanto o treino esta rodando.
 ## Deferred: o estado (tiro comprado, carga, casa revelada) so assenta depois
 ## do sinal.
-func bind(shop: Shop, board: Board, fleet_bar: FleetBar, hud: Hud, map: LevelMap) -> void:
+func bind(shop: Shop, board: Board, fleet_bar: FleetBar, hud: Hud, map: LevelMap,
+		enemy_fleet: EnemyFleetPanel) -> void:
 	_shop = shop
 	_board = board
 	_fleet_bar = fleet_bar
 	_hud = hud
 	_map = map
+	_enemy_fleet = enemy_fleet
 	Game.money_changed.connect(func(_m): _event.call_deferred(&"money"))
 	board.round_started.connect(func(): _event.call_deferred(&"round"))
 	board.ship_selected.connect(func(_s): _event.call_deferred(&"select"))
@@ -128,7 +131,7 @@ func _build_steps() -> Array[Dictionary]:
 		{"on": &"round", "rect": func() -> Rect2: return _shop.continue_btn.get_global_rect(),
 			"text": "Encouraçado e Cruzador carregados. Clique em Zarpar."},
 		# --- Batalha ---
-		{"on": &"next", "rect": func() -> Rect2: return _hud.fleet_box.get_global_rect(),
+		{"on": &"next", "rect": func() -> Rect2: return _enemy_fleet.get_global_rect(),
 			"text": "Esta é a frota inimiga. BLIND = casco blindado. $4 = saque pago ao afundar o Cargueiro (quanto menor o navio, mais paga). E tem 1 MINA escondida na grade."},
 		{"on": &"next", "rect": _grid_rect,
 			"text": "Os números em volta da grade dizem quantas casas de navio faltam em cada linha e coluna. Navios nunca se encostam, nem na diagonal."},

@@ -1,4 +1,4 @@
-[gd_scene load_steps=18 format=3]
+[gd_scene load_steps=19 format=3]
 
 [ext_resource type="Script" path="res://scripts/Main.gd" id="1"]
 [ext_resource type="PackedScene" path="res://scenes/Board.tscn" id="2"]
@@ -17,6 +17,7 @@
 [ext_resource type="Script" path="res://scripts/ImpactFx.gd" id="15"]
 [ext_resource type="Script" path="res://scripts/Tutorial.gd" id="16"]
 [ext_resource type="PackedScene" path="res://scenes/Victory.tscn" id="17"]
+[ext_resource type="PackedScene" path="res://scenes/EnemyFleet.tscn" id="18"]
 
 [node name="Main" type="Control"]
 layout_mode = 3
@@ -37,6 +38,9 @@ layout_mode = 1
 layout_mode = 1
 
 [node name="Hud" parent="." instance=ExtResource("11")]
+layout_mode = 1
+
+[node name="EnemyFleet" parent="." instance=ExtResource("18")]
 layout_mode = 1
 
 [node name="ShotFx" type="Control" parent="."]

@@ -13,15 +13,8 @@ const CREAM := Color("#fdf6e3")
 const GOLD := Color("#f3c44b")
 const HIT_RED := Color("#e43c4f")
 const WATER_BLUE := Color("#8fb3c9")
-const FLEET_ALIVE := Color("#2fbfb0")
-const SUNK_RED := Color("#e43c4f")
 const FLEET_DIM := Color(0.6, 0.63, 0.68, 0.8)
 const STEEL := Color("#9fb0c4")
-const TAG_COLORS := {
-	&"loot": GOLD,
-	&"armor": STEEL,
-	&"sub": Color("#2fbfb0"),
-}
 # Cor do combo por tamanho da sequencia (indice = acertos seguidos - 2).
 const HEAT: Array[Color] = [Color("#f3c44b"), Color("#f08a3c"), Color("#e4573c"), Color("#ff3b2f")]
 const FIRE_STREAK := 4        # a partir daqui o mult pega fogo (+1 chama por acerto)
@@ -54,7 +47,6 @@ const DANGER_ORANGE := Color("#f08a3c")
 @onready var sonar_value: Label = $VBox/Stats/Sonar/VBox/Value
 @onready var money_box: PanelContainer = $VBox/Stats/Money
 @onready var money_value: Label = $VBox/Stats/Money/VBox/Value
-@onready var fleet_box: VBoxContainer = $VBox/Fleet
 
 var _board: Board = null
 var _shown_score: float = 0.0
@@ -80,7 +72,6 @@ func bind(board: Board) -> void:
 	board.sonar_changed.connect(func(_l): _refresh_counts())
 	board.combo_changed.connect(_on_combo_changed)
 	board.shot_resolved.connect(_on_shot)
-	board.enemy_fleet_changed.connect(_refresh_fleet)
 	Game.money_changed.connect(func(_m):
 		_refresh_counts()
 		_pop(money_box)
@@ -102,7 +93,6 @@ func _on_round_started() -> void:
 	track.queue_redraw()
 	_on_score_changed(_board.score, _board.target)
 	_refresh_counts()
-	_refresh_fleet()
 
 ## Paradas do ante: vencidas em ouro, atual em creme com anel, chefe com coroa.
 ## Rota especial (perigo/tesouro) escrita embaixo.
@@ -133,72 +123,6 @@ func _draw_track() -> void:
 	if kind != Game.Stop.NORMAL:
 		var color := DANGER_ORANGE if kind == Game.Stop.DANGER else GOLD
 		track.draw_string(font, Vector2(0, TRACK_Y + 34), Game.STOP_NAMES[kind], HORIZONTAL_ALIGNMENT_LEFT, -1, 16, color)
-
-## Uma linha por tipo de navio inimigo: quadradinhos do tamanho + nome, e
-## "xN" com quantos ainda flutuam quando ha mais de um igual. So revela o que
-## o batalha naval classico anuncia (quem ja afundou), nunca a posicao.
-func _refresh_fleet() -> void:
-	for c in fleet_box.get_children():
-		fleet_box.remove_child(c)
-		c.queue_free()
-	var groups: Dictionary = {}   # nome|tamanho|marcas -> {def, alive, total}
-	for ship in _board.enemy_ships:
-		var def: EnemyShipDef = ship["def"]
-		var key := "%s|%d|%s" % [def.display_name, def.size, str(def.tags())]
-		if not groups.has(key):
-			groups[key] = {"def": def, "alive": 0, "total": 0}
-		groups[key]["total"] += 1
-		if not _board.is_sunk(ship):
-			groups[key]["alive"] += 1
-	for group in groups.values():
-		var def: EnemyShipDef = group["def"]
-		var sunk: bool = group["alive"] == 0
-		var row := HBoxContainer.new()
-		row.add_theme_constant_override("separation", 8)
-		var squares := HBoxContainer.new()
-		squares.add_theme_constant_override("separation", 2)
-		squares.custom_minimum_size = Vector2(5 * 14, 0)
-		for i in def.size:
-			var sq := ColorRect.new()
-			sq.custom_minimum_size = Vector2(12, 12)
-			sq.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-			sq.color = SUNK_RED if sunk else FLEET_ALIVE
-			squares.add_child(sq)
-		row.add_child(squares)
-		var name_lbl := Label.new()
-		name_lbl.text = def.display_name
-		if group["total"] > 1:
-			name_lbl.text += " x%d" % (group["total"] if sunk else group["alive"])
-		name_lbl.add_theme_color_override("font_color", FLEET_DIM if sunk else CREAM)
-		row.add_child(name_lbl)
-		for tag in def.tags():
-			var tag_lbl := Label.new()
-			tag_lbl.text = tag["text"]
-			tag_lbl.add_theme_color_override("font_color", FLEET_DIM if sunk else TAG_COLORS.get(tag["kind"], CREAM))
-			row.add_child(tag_lbl)
-		fleet_box.add_child(row)
-	if _board.mines_total > 0:
-		fleet_box.add_child(_mines_row())
-
-## Minas: um quadrado por mina (vermelho = ainda escondida, cinza = detonada).
-func _mines_row() -> HBoxContainer:
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 8)
-	var squares := HBoxContainer.new()
-	squares.add_theme_constant_override("separation", 2)
-	squares.custom_minimum_size = Vector2(5 * 14, 0)
-	for i in _board.mines_total:
-		var sq := ColorRect.new()
-		sq.custom_minimum_size = Vector2(12, 12)
-		sq.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-		sq.color = FLEET_DIM if i < _board.mines_exploded else HIT_RED
-		squares.add_child(sq)
-	row.add_child(squares)
-	var lbl := Label.new()
-	lbl.text = "Minas  -1 tiro"
-	lbl.add_theme_color_override("font_color", HIT_RED)
-	row.add_child(lbl)
-	return row
 
 func _on_score_changed(score: int, target: int) -> void:
 	target_value.text = str(target)
